@@ -130,7 +130,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 /** 构建标识：控制台 window.__MJ_BUILD；页面右下角 #mjBuildStamp 同步显示 */
-window.__MJ_BUILD='MJ-2026-04-19 wss-default+early-netUrl MahjongApp/index.html';
+window.__MJ_BUILD='MJ-2026-04-19 net-hint+railway-start MahjongApp/index.html';
 (function mjStamp(){
   var el=document.getElementById('mjBuildStamp');
   if(el) el.textContent=window.__MJ_BUILD+' | '+String(location.pathname||'');
@@ -2813,8 +2813,10 @@ function netConnect(){
     return;
   }
   netWs=socket;
+  let netConnectOpened=false;
   socket.onopen=()=>{
     if(netWs!==socket) return;
+    netConnectOpened=true;
     if(statusEl) statusEl.textContent='联机：已连接，正在加入房间…';
     try{
       socket.send(JSON.stringify({type:'join',room:netRoom}));
@@ -2868,15 +2870,26 @@ function netConnect(){
     }
     if(msg.type==='state'&&msg.state) applyRemoteState(msg.state);
   };
-  socket.onclose=()=>{
+  socket.onclose=(ev)=>{
     if(netWs!==socket) return;
     netWs=null;
     rtcShutdown();
     if(statusEl) statusEl.textContent='联机：已断开（本地单机）';
+    if(!netConnectOpened){
+      showToast(netConnectFailedHint(ev.code));
+    }
   };
-  socket.onerror=()=>{
-    showToast('联机失败：请先 cd server 执行 npm start，并用 http 打开本页（勿用 file://）');
-  };
+  socket.onerror=function(){};
+}
+/** 连接从未成功时的说明（避免 https 部署仍提示 cd server） */
+function netConnectFailedHint(closeCode){
+  if(location.protocol==='file:'){
+    return '联机失败：请用 http/https 打开本页（勿用 file://），本地请在 server 目录执行 npm start';
+  }
+  if(location.protocol==='https:'){
+    return '联机失败：无法建立 wss。请确认 Railway 启动命令为 node server/index.js（HTTP 与 WebSocket 同端口），且本页与该服务同一域名';
+  }
+  return '联机失败：请确认已运行 npm start（server），且地址为 ws://本机:'+(location.port||'31987')+' 或中继端口';
 }
 
 /** 联机 WebSocket 默认 URL（与页首内联脚本 __MJ_DEFAULT_NET_WS_URL 一致） */
