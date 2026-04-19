@@ -1341,7 +1341,7 @@ function wallCloneForPeek(st){
 }
 /**
  * 张数 n 由调用方传入（通常为右上角设定）。环序即 wallDrawOrderGlobals：3D 桌面上顺时针对四面墙，墩内 1上1下…。
- * 首摸前：必须从锚点那张开始（点哪摸哪）；首摸后：沿 wallRingDirection（±1）步进。
+ * 首摸前：必须从锚点那张开始（点哪摸哪）；首摸后：每次点牌山先把锚点跳到点击位（墩内先上后下见 wallUpperBeforeLowerInStack），再沿 wallRingDirection（±1）步进。
  * 逆时针时环会先指到「下」再指到「上」，同墩内仍强制先上后下（见 wallUpperBeforeLowerInStack）。
  */
 function drawForwardBatch(st,n,collectPoses){
@@ -1615,8 +1615,12 @@ function syncWallForwardCursorToTile(st,side,wallIndex){
     st.lastWallInteractGlobal=g;
     if(st.gamePhase==='play'){
       const pick=lastWallPickWorld;
-      if(!st.wallFirstBatchDone) st.wallForwardCursorGlobal=g;
-      else wallRingSetDirectionFromPick(st,pick);
+      if(!st.wallFirstBatchDone){
+        st.wallForwardCursorGlobal=g;
+      }else{
+        st.wallForwardCursorGlobal=wallUpperBeforeLowerInStack(st,g);
+        wallRingSetDirectionFromPick(st,pick);
+      }
       mjWallDebugLog('(1) 点牌山 首摸完成=',st.wallFirstBatchDone,' 锚点=',st.wallForwardCursorGlobal,' 环向=',st.wallRingDirection,' 点中 g=',g,' side=',side,' idx=',wallIndex);
     }else st.wallForwardCursorGlobal=g;
   }
