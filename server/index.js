@@ -1,13 +1,15 @@
 /**
- * MahjongApp WebSocket 中继（仅转发，不做规则校验）
+ * MahjongApp：HTTP 静态页 + WebSocket 中继（同一端口，便于 Railway 等 PaaS）
  *
- * - 启动：npm install && npm start；默认 PORT=31987
- * - 房间：同名 room 即同一桌
- * - join：按连接加入顺序分配物理座位 SEAT_ORDER = S→N→E→W 循环
- * - state：存 lastState，并向房间内**所有**已连接客户端广播同一份 tableState（不含座位信息；座位只在 joined 里告知本连接）
- * - rtc_signal：WebRTC 信令，按 `to` 转发给指定 peer（用于房间内语音）
+ * - 启动：npm install && npm start；默认 PORT=31987（本地）；Railway 使用环境变量 PORT
+ * - 静态文件：仓库根目录（本文件所在目录的上一级）
+ * - join：按连接顺序分配座位 S→N→E→W；state 广播；rtc_signal 转发语音信令
  */
 const crypto = require('crypto');
+const fs = require('fs');
+const http = require('http');
+const path = require('path');
+const { URL } = require('url');
 const WebSocket = require('ws');
 
 function genPeerId() {
@@ -16,9 +18,73 @@ function genPeerId() {
 
 const port = Number(process.env.PORT) || 31987;
 const host = process.env.HOST || '0.0.0.0';
-const wss = new WebSocket.Server({ port, host });
+const staticRoot = path.resolve(__dirname, '..');
 
-wss.on('error', (err) => {
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.txt': 'text/plain; charset=utf-8',
+};
+
+function serveStatic(req, res) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405);
+    res.end();
+    return;
+  }
+  let pathname;
+  try {
+    pathname = new URL(req.url || '/', 'http://localhost').pathname;
+  } catch {
+    res.writeHead(400);
+    res.end();
+    return;
+  }
+  if (pathname === '/') pathname = '/index.html';
+  const rel = decodeURIComponent(pathname.replace(/^\/+/, ''));
+  if (!rel || rel.includes('..')) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+  const filePath = path.resolve(staticRoot, rel);
+  const relToRoot = path.relative(staticRoot, filePath);
+  if (relToRoot.startsWith('..') || path.isAbsolute(relToRoot)) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+  fs.stat(filePath, (err, st) => {
+    if (err || !st.isFile()) {
+      res.writeHead(404);
+      res.end('Not found');
+      return;
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    res.setHeader('Content-Type', MIME[ext] || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'no-store');
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
+    fs.createReadStream(filePath).pipe(res);
+  });
+}
+
+const server = http.createServer(serveStatic);
+const wss = new WebSocket.Server({ server });
+
+server.on('error', (err) => {
   if (err && err.code === 'EADDRINUSE') {
     console.error(
       `[Mahjong relay] 端口 ${port} 已被占用。可换端口启动，例如：PORT=31988 npm start`
@@ -27,12 +93,6 @@ wss.on('error', (err) => {
     console.error('[Mahjong relay]', err);
   }
   process.exit(1);
-});
-
-wss.on('listening', () => {
-  console.log(
-    `Mahjong relay ws://${host}:${port}（本机 ws://127.0.0.1:${port}，局域网用电脑 IP）`
-  );
 });
 
 /** @type {Map<string, { clients: Set<import('ws')>, lastState: object|null, joinOrder: import('ws')[], seatMap: Map<import('ws'), string> }>} */
@@ -201,4 +261,10 @@ wss.on('connection', (ws) => {
     }
     if (room.clients.size === 0) rooms.delete(roomId);
   });
+});
+
+server.listen(port, host, () => {
+  console.log(
+    `[Mahjong] 静态 + WebSocket 同一端口 PORT=${port}（本机 http://127.0.0.1:${port}/ ）`
+  );
 });
