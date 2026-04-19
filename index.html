@@ -42,6 +42,11 @@
   #netPanel button#netDisconnect{ background:#5a3a3a; }
   #netStatus{ opacity:.92; font-size:10px; width:100%; flex-basis:100%; margin-top:1px; line-height:1.2; }
   #netHint{ flex-basis:100%; font-size:9px; opacity:.8; line-height:1.25; }
+  #rtcVoiceRow{
+    flex-basis:100%; display:none; flex-wrap:wrap; align-items:center; gap:4px; margin-top:2px;
+  }
+  #rtcVoiceRow.visible{ display:flex; }
+  #netPanel button.rtc-off{ opacity:.55; }
   #drawCountBtn{
     position:fixed; right:max(12px,env(safe-area-inset-right)); top:max(12px,env(safe-area-inset-top));
     z-index:55; width:min(56px,18vw); min-height:72px; border-radius:8px; border:1px solid #555;
@@ -95,6 +100,10 @@
   <button type="button" id="netDisconnect">断开</button>
   <span id="netStatus">联机：未连接（本地单机）</span>
   <span id="netHint">http 打开本页 · 中继默认 31987 · 同房间同桌</span>
+  <div id="rtcVoiceRow" aria-label="语音">
+    <button type="button" id="rtcMicBtn" title="麦克风：开/关（控制自己说话）">麦克风</button>
+    <button type="button" id="rtcSpeakerBtn" title="喇叭：开/关（控制是否听到对方）">喇叭</button>
+  </div>
 </div>
 <canvas id="c"></canvas>
 <div id="diceGate" aria-hidden="true">
@@ -2521,6 +2530,185 @@ function flushNetBroadcast(){
   }catch(_){}
 }
 
+/** 联机语音：WebRTC + 中继信令；麦克风/喇叭仅本机开关 */
+const RTC_CONFIG={iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
+let rtcMyPeerId=null;
+let rtcLocalStream=null;
+let rtcMicOn=true;
+let rtcSpeakerOn=true;
+const rtcKnownPeerIds=new Set();
+const rtcPeerMap=new Map();
+
+function rtcSendSignal(to,payload){
+  if(!netWs||netWs.readyState!==1||!to) return;
+  try{
+    netWs.send(JSON.stringify({type:'rtc_signal',room:netRoom,to:to,payload:payload}));
+  }catch(_){}
+}
+
+function rtcApplyMic(){
+  if(!rtcLocalStream) return;
+  rtcLocalStream.getAudioTracks().forEach(function(t){ t.enabled=rtcMicOn; });
+}
+
+function rtcApplySpeaker(){
+  rtcPeerMap.forEach(function(ent){
+    if(ent.audio) ent.audio.muted=!rtcSpeakerOn;
+  });
+}
+
+function rtcUpdateVoiceUi(){
+  const row=document.getElementById('rtcVoiceRow');
+  const micBtn=document.getElementById('rtcMicBtn');
+  const spkBtn=document.getElementById('rtcSpeakerBtn');
+  const show=!!rtcMyPeerId&&netWs&&netWs.readyState===1;
+  if(row) row.classList.toggle('visible',show);
+  if(micBtn){
+    micBtn.classList.toggle('rtc-off',!rtcMicOn);
+    micBtn.setAttribute('aria-pressed',rtcMicOn?'true':'false');
+  }
+  if(spkBtn){
+    spkBtn.classList.toggle('rtc-off',!rtcSpeakerOn);
+    spkBtn.setAttribute('aria-pressed',rtcSpeakerOn?'true':'false');
+  }
+}
+
+function rtcShutdown(){
+  rtcKnownPeerIds.clear();
+  rtcMyPeerId=null;
+  rtcPeerMap.forEach(function(ent){
+    try{ ent.pc.close(); }catch(_){}
+    if(ent.audio){
+      try{ ent.audio.pause(); }catch(_){}
+      ent.audio.srcObject=null;
+      ent.audio.remove();
+    }
+  });
+  rtcPeerMap.clear();
+  if(rtcLocalStream){
+    rtcLocalStream.getTracks().forEach(function(t){ try{ t.stop(); }catch(_){} });
+    rtcLocalStream=null;
+  }
+  rtcUpdateVoiceUi();
+}
+
+async function rtcEnsureLocalStream(){
+  if(rtcLocalStream) return;
+  if(typeof navigator==='undefined'||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    showToast('当前环境不支持麦克风');
+    return;
+  }
+  try{
+    rtcLocalStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    rtcApplyMic();
+  }catch(_){
+    showToast('无法使用麦克风：请允许权限并用 https 或本机 http 访问');
+  }
+}
+
+function rtcMakePeerConnection(peerId){
+  if(rtcPeerMap.has(peerId)) return rtcPeerMap.get(peerId).pc;
+  const pc=new RTCPeerConnection(RTC_CONFIG);
+  const ent={pc:pc,audio:null};
+  rtcPeerMap.set(peerId,ent);
+  if(rtcLocalStream){
+    rtcLocalStream.getTracks().forEach(function(t){ pc.addTrack(t,rtcLocalStream); });
+  }
+  pc.onicecandidate=function(e){
+    if(!e.candidate||!netWs||netWs.readyState!==1) return;
+    const cand=e.candidate;
+    const pl={type:'ice-candidate',candidate:cand.toJSON?cand.toJSON():{candidate:cand.candidate,sdpMid:cand.sdpMid,sdpMLineIndex:cand.sdpMLineIndex}};
+    rtcSendSignal(peerId,pl);
+  };
+  pc.ontrack=function(e){
+    const entry=rtcPeerMap.get(peerId);
+    if(!entry) return;
+    let a=entry.audio;
+    if(!a){
+      a=document.createElement('audio');
+      a.autoplay=true;
+      a.setAttribute('playsinline','');
+      entry.audio=a;
+      document.body.appendChild(a);
+    }
+    if(e.streams&&e.streams[0]) a.srcObject=e.streams[0];
+    a.muted=!rtcSpeakerOn;
+    try{ a.play(); }catch(_){}
+  };
+  return pc;
+}
+
+async function rtcConnectToPeer(peerId){
+  if(!rtcMyPeerId||peerId===rtcMyPeerId) return;
+  if(rtcPeerMap.has(peerId)) return;
+  await rtcEnsureLocalStream();
+  if(!rtcLocalStream) return;
+  if(rtcMyPeerId<peerId){
+    rtcMakePeerConnection(peerId);
+    const pc=rtcPeerMap.get(peerId).pc;
+    try{
+      const offer=await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      rtcSendSignal(peerId,{type:'offer',sdp:pc.localDescription.sdp});
+    }catch(_){}
+  }
+}
+
+function rtcOnPeerDiscovered(peerId){
+  if(!peerId||peerId===rtcMyPeerId) return;
+  if(rtcKnownPeerIds.has(peerId)) return;
+  rtcKnownPeerIds.add(peerId);
+  void rtcConnectToPeer(peerId);
+}
+
+function rtcRemovePeer(peerId){
+  rtcKnownPeerIds.delete(peerId);
+  const ent=rtcPeerMap.get(peerId);
+  if(ent){
+    try{ ent.pc.close(); }catch(_){}
+    if(ent.audio){
+      try{ ent.audio.pause(); }catch(_){}
+      ent.audio.srcObject=null;
+      ent.audio.remove();
+    }
+    rtcPeerMap.delete(peerId);
+  }
+}
+
+async function rtcHandleSignal(from,payload){
+  if(!from||from===rtcMyPeerId) return;
+  const p=payload;
+  if(!p||!p.type) return;
+  if(p.type==='offer'){
+    await rtcEnsureLocalStream();
+    if(!rtcLocalStream) return;
+    let pc;
+    if(rtcPeerMap.has(from)){
+      pc=rtcPeerMap.get(from).pc;
+    }else{
+      pc=rtcMakePeerConnection(from);
+    }
+    try{
+      await pc.setRemoteDescription({type:'offer',sdp:p.sdp});
+      const answer=await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      rtcSendSignal(from,{type:'answer',sdp:pc.localDescription.sdp});
+    }catch(_){}
+  }else if(p.type==='answer'){
+    const ent=rtcPeerMap.get(from);
+    if(!ent) return;
+    try{
+      await ent.pc.setRemoteDescription({type:'answer',sdp:p.sdp});
+    }catch(_){}
+  }else if(p.type==='ice-candidate'&&p.candidate){
+    const ent=rtcPeerMap.get(from);
+    if(!ent) return;
+    try{
+      await ent.pc.addIceCandidate(p.candidate);
+    }catch(_){}
+  }
+}
+
 function syncRuleCheckboxesFromState(st){
   if(!st||!st.cfg) return;
   const f=document.getElementById('optFlowers');
@@ -2558,6 +2746,7 @@ function applyRemoteState(state){
 }
 
 function netDisconnect(){
+  rtcShutdown();
   window.__mjPendingNet=0;
   mySeat='S';
   resetCameraSeatBinding();
@@ -2617,6 +2806,19 @@ function netConnect(){
         mySeat=s;
         resetCameraSeatBinding();
       }
+      if(msg.peerId){
+        const same=rtcMyPeerId===msg.peerId;
+        if(!same){
+          rtcShutdown();
+          rtcMyPeerId=msg.peerId;
+          rtcMicOn=true;
+          rtcSpeakerOn=true;
+        }
+        (msg.rtcPeers||[]).forEach(function(id){ rtcOnPeerDiscovered(id); });
+        rtcUpdateVoiceUi();
+      }else{
+        rtcShutdown();
+      }
       if(msg.peers===1&&tableState&&netWs===socket){
         try{
           netWs.send(JSON.stringify({type:'state',room:netRoom,state:cloneStateForNet(tableState)}));
@@ -2626,11 +2828,24 @@ function netConnect(){
       if(msg.peers===1&&tableState) fullRender();
       return;
     }
+    if(msg.type==='rtc_peer_joined'&&msg.room===netRoom&&msg.peerId){
+      rtcOnPeerDiscovered(msg.peerId);
+      return;
+    }
+    if(msg.type==='rtc_peer_left'&&msg.room===netRoom&&msg.peerId){
+      rtcRemovePeer(msg.peerId);
+      return;
+    }
+    if(msg.type==='rtc_signal'&&msg.room===netRoom&&msg.from&&msg.payload){
+      void rtcHandleSignal(msg.from,msg.payload);
+      return;
+    }
     if(msg.type==='state'&&msg.state) applyRemoteState(msg.state);
   };
   socket.onclose=()=>{
     if(netWs!==socket) return;
     netWs=null;
+    rtcShutdown();
     if(statusEl) statusEl.textContent='联机：已断开（本地单机）';
   };
   socket.onerror=()=>{
@@ -2648,6 +2863,18 @@ function initNetPanel(){
     if(st) st.textContent='联机：请用 http 打开本页（file:// 下无法联机）';
     showToast('请用终端在项目目录执行：python3 -m http.server 31980，再打开 http://127.0.0.1:31980');
   }
+  const micBtn=document.getElementById('rtcMicBtn');
+  const spkBtn=document.getElementById('rtcSpeakerBtn');
+  if(micBtn) micBtn.addEventListener('click',function(){
+    rtcMicOn=!rtcMicOn;
+    rtcApplyMic();
+    rtcUpdateVoiceUi();
+  });
+  if(spkBtn) spkBtn.addEventListener('click',function(){
+    rtcSpeakerOn=!rtcSpeakerOn;
+    rtcApplySpeaker();
+    rtcUpdateVoiceUi();
+  });
 }
 
 function resetCameraView(){

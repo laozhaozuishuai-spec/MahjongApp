@@ -5,8 +5,14 @@
  * - 房间：同名 room 即同一桌
  * - join：按连接加入顺序分配物理座位 SEAT_ORDER = S→N→E→W 循环
  * - state：存 lastState，并向房间内**所有**已连接客户端广播同一份 tableState（不含座位信息；座位只在 joined 里告知本连接）
+ * - rtc_signal：WebRTC 信令，按 `to` 转发给指定 peer（用于房间内语音）
  */
+const crypto = require('crypto');
 const WebSocket = require('ws');
+
+function genPeerId() {
+  return crypto.randomBytes(8).toString('hex');
+}
 
 const port = Number(process.env.PORT) || 31987;
 const host = process.env.HOST || '0.0.0.0';
@@ -71,9 +77,14 @@ wss.on('connection', (ws) => {
       ensureSeatMap(room);
 
       if (room.joinOrder.includes(ws)) {
+        if (!ws.mjPeerId) ws.mjPeerId = genPeerId();
         const seat = seatForClient(room, ws);
         const seatIndex = SEAT_ORDER.indexOf(seat);
         const joinIndex = room.joinOrder.indexOf(ws);
+        const rtcPeers = [...room.clients]
+          .filter((c) => c !== ws)
+          .map((c) => c.mjPeerId)
+          .filter(Boolean);
         ws.send(
           JSON.stringify({
             type: 'joined',
@@ -82,6 +93,8 @@ wss.on('connection', (ws) => {
             seat,
             seatIndex: seatIndex >= 0 ? seatIndex : 0,
             joinIndex: joinIndex >= 0 ? joinIndex : 0,
+            peerId: ws.mjPeerId,
+            rtcPeers,
           })
         );
         if (room.lastState) {
@@ -90,6 +103,8 @@ wss.on('connection', (ws) => {
         return;
       }
 
+      if (!ws.mjPeerId) ws.mjPeerId = genPeerId();
+      const rtcPeers = [...room.clients].map((c) => c.mjPeerId).filter(Boolean);
       room.clients.add(ws);
       room.joinOrder.push(ws);
       const joinIndex = room.joinOrder.length - 1;
@@ -104,10 +119,47 @@ wss.on('connection', (ws) => {
           seat,
           seatIndex,
           joinIndex,
+          peerId: ws.mjPeerId,
+          rtcPeers,
         })
       );
+      const joinedPayload = JSON.stringify({
+        type: 'rtc_peer_joined',
+        room: roomId,
+        peerId: ws.mjPeerId,
+      });
+      for (const client of room.clients) {
+        if (client !== ws && client.readyState === WebSocket.OPEN) client.send(joinedPayload);
+      }
       if (room.lastState) {
         ws.send(JSON.stringify({ type: 'state', room: roomId, state: room.lastState }));
+      }
+      return;
+    }
+
+    if (
+      msg.type === 'rtc_signal' &&
+      typeof msg.room === 'string' &&
+      roomId &&
+      msg.room === roomId &&
+      typeof msg.to === 'string' &&
+      msg.payload !== undefined &&
+      ws.mjPeerId
+    ) {
+      const room = rooms.get(roomId);
+      if (!room) return;
+      for (const client of room.clients) {
+        if (client.mjPeerId === msg.to && client.readyState === WebSocket.OPEN) {
+          client.send(
+            JSON.stringify({
+              type: 'rtc_signal',
+              room: roomId,
+              from: ws.mjPeerId,
+              payload: msg.payload,
+            })
+          );
+          return;
+        }
       }
       return;
     }
@@ -132,10 +184,21 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     if (!roomId || !rooms.has(roomId)) return;
     const room = rooms.get(roomId);
+    const leftId = ws.mjPeerId;
     room.clients.delete(ws);
     room.joinOrder = room.joinOrder.filter((c) => c !== ws);
     ensureSeatMap(room);
     room.seatMap.delete(ws);
+    if (leftId) {
+      const payload = JSON.stringify({
+        type: 'rtc_peer_left',
+        room: roomId,
+        peerId: leftId,
+      });
+      for (const client of room.clients) {
+        if (client.readyState === WebSocket.OPEN) client.send(payload);
+      }
+    }
     if (room.clients.size === 0) rooms.delete(roomId);
   });
 });
