@@ -88,13 +88,13 @@
 <body>
 <input type="checkbox" id="optFlowers" checked hidden>
 <input type="checkbox" id="optHonors" checked hidden>
-<div id="mjBuildStamp" title="构建标识：与 window.__MJ_BUILD 一致；看不到请确认用 http 打开本仓库根目录 index.html">MJ-2026-04-15-tail-ghost-col loading…</div>
+<div id="mjBuildStamp" title="构建标识：与 window.__MJ_BUILD 一致；看不到请确认用 http 打开本仓库根目录 index.html">MJ-2026-04-19 loading…</div>
 <button type="button" id="fabNew" title="新局洗牌">新局</button>
 <button type="button" id="drawCountBtn" title="本机每次从牌山连续取几张（仅影响自己，不与联机同步）。点按切换摸4/摸1，长按选1～8张" aria-label="摸牌张数">摸4</button>
 <div id="drawCountMenu" aria-label="选择摸牌张数"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="netPanel" aria-label="联机试玩" title="联机：终端 cd server &amp;&amp; npm start（默认 31987）；用 http 打开本页；同房间名即同桌，加入顺序占座东南西北">
-  <input type="text" id="netUrl" value="" autocomplete="off" placeholder="加载后自动填写" title="WebSocket：与当前页同主机、同端口（本机仅开中继未开页面时默认 ws://本机:31987）">
+  <input type="text" id="netUrl" value="" autocomplete="off" data-lpignore="true" data-form-type="other" placeholder="加载后自动填写" title="WebSocket：与当前页同主机、同端口（本机仅开中继未开页面时默认 ws://本机:31987）">
   <input type="text" id="netRoom" value="room1" maxlength="64" autocomplete="off" placeholder="房间" title="同一房间名即同一桌">
   <button type="button" id="netConnect">连接</button>
   <button type="button" id="netDisconnect">断开</button>
@@ -105,6 +105,20 @@
     <button type="button" id="rtcSpeakerBtn" title="喇叭：开/关（控制是否听到对方）">喇叭</button>
   </div>
 </div>
+<script>
+(function(){
+  function defaultNetWsUrl(){
+    if(location.protocol==='file:') return 'ws://127.0.0.1:31987';
+    if(location.protocol==='https:') return 'wss://'+location.host;
+    var p=location.port;
+    if(!p||p==='80') return 'ws://'+location.hostname+':31987';
+    return 'ws://'+location.host;
+  }
+  window.__MJ_DEFAULT_NET_WS_URL=defaultNetWsUrl;
+  var el=document.getElementById('netUrl');
+  if(el) el.value=defaultNetWsUrl();
+})();
+</script>
 <canvas id="c"></canvas>
 <div id="diceGate" aria-hidden="true">
   <div id="diceGateInner">
@@ -116,7 +130,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 /** 构建标识：控制台 window.__MJ_BUILD；页面右下角 #mjBuildStamp 同步显示 */
-window.__MJ_BUILD='MJ-2026-04-16 MahjongApp/index.html';
+window.__MJ_BUILD='MJ-2026-04-19 wss-default+early-netUrl MahjongApp/index.html';
 (function mjStamp(){
   var el=document.getElementById('mjBuildStamp');
   if(el) el.textContent=window.__MJ_BUILD+' | '+String(location.pathname||'');
@@ -2778,6 +2792,18 @@ function netConnect(){
     showToast('请填写 WebSocket 地址');
     return;
   }
+  if(location.protocol==='https:'){
+    if(/^ws:\/\//i.test(url)){
+      showToast('https 页面须用 wss://，已改成本页默认地址');
+      if(urlEl) urlEl.value=defaultNetWsUrl();
+      return;
+    }
+    if(/127\.0\.0\.1|localhost/i.test(url)){
+      showToast('部署环境勿填本机地址，已改成本页 wss 地址');
+      if(urlEl) urlEl.value=defaultNetWsUrl();
+      return;
+    }
+  }
   netDisconnect();
   let socket;
   try{
@@ -2853,8 +2879,9 @@ function netConnect(){
   };
 }
 
-/** 联机 WebSocket 默认 URL：与当前页同主机、同端口（Railway/https 为 wss://本页 host） */
+/** 联机 WebSocket 默认 URL（与页首内联脚本 __MJ_DEFAULT_NET_WS_URL 一致） */
 function defaultNetWsUrl(){
+  if(typeof window.__MJ_DEFAULT_NET_WS_URL==='function') return window.__MJ_DEFAULT_NET_WS_URL();
   if(location.protocol==='file:') return 'ws://127.0.0.1:31987';
   if(location.protocol==='https:') return 'wss://'+location.host;
   const p=location.port;
