@@ -94,12 +94,12 @@
 <div id="drawCountMenu" aria-label="选择摸牌张数"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="netPanel" aria-label="联机试玩" title="联机：终端 cd server &amp;&amp; npm start（默认 31987）；用 http 打开本页；同房间名即同桌，加入顺序占座东南西北">
-  <input type="text" id="netUrl" value="ws://127.0.0.1:31987" autocomplete="off" placeholder="ws://地址:端口" title="WebSocket 中继（默认 31987）">
+  <input type="text" id="netUrl" value="" autocomplete="off" placeholder="加载后自动填写" title="WebSocket：与本页同主机名；http 下中继端口默认 31987；https 下为 wss 本页域名">
   <input type="text" id="netRoom" value="room1" maxlength="64" autocomplete="off" placeholder="房间" title="同一房间名即同一桌">
   <button type="button" id="netConnect">连接</button>
   <button type="button" id="netDisconnect">断开</button>
   <span id="netStatus">联机：未连接（本地单机）</span>
-  <span id="netHint">http 打开本页 · 中继默认 31987 · 同房间同桌</span>
+  <span id="netHint">联机地址默认随本页域名；本地 http 中继端口 31987 · 同房间同桌</span>
   <div id="rtcVoiceRow" aria-label="语音">
     <button type="button" id="rtcMicBtn" title="麦克风：开/关（控制自己说话）">麦克风</button>
     <button type="button" id="rtcSpeakerBtn" title="喇叭：开/关（控制是否听到对方）">喇叭</button>
@@ -2853,11 +2853,16 @@ function netConnect(){
   };
 }
 
+/** 联机 WebSocket 默认 URL：与本页 hostname 一致，便于 Railway 等同源部署（https→wss+本页 host） */
+function defaultNetWsUrl(){
+  if(location.protocol==='file:') return 'ws://127.0.0.1:31987';
+  if(location.protocol==='https:') return 'wss://'+location.host;
+  return 'ws://'+location.hostname+':31987';
+}
+
 function initNetPanel(){
   const urlInput=document.getElementById('netUrl');
-  if(urlInput&&(urlInput.value==='ws://127.0.0.1:31987'||urlInput.value==='ws://127.0.0.1:8787')&&location.protocol==='http:'&&location.hostname){
-    urlInput.value=`ws://${location.hostname}:31987`;
-  }
+  if(urlInput) urlInput.value=defaultNetWsUrl();
   if(location.protocol==='file:'){
     const st=document.getElementById('netStatus');
     if(st) st.textContent='联机：请用 http 打开本页（file:// 下无法联机）';
