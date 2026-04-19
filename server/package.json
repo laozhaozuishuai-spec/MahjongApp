@@ -1,0 +1,13 @@
+{
+  "name": "mahjongapp-relay",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Minimal WebSocket relay for MahjongApp tableState sync",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

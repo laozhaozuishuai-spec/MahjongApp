@@ -1,0 +1,16 @@
+Flaticon 图标使用说明
+====================
+
+本目录下的 PNG（由 scripts/fetch-flaticon-mahjong.sh 从 Flaticon 下载）受 Flaticon 授权条款约束：
+https://www.flaticon.com/legal
+
+免费使用通常需要「署名」：在页面或关于中注明作者与来源，例如：
+  Icon by [作者名] from Flaticon
+
+每张图标的作者名请在该图标在 flaticon.com 上的详情页查看并分别记录。
+
+manifest.json 中的 URL 也可指向 flaticon CDN；若使用免费资源，同样需要按上述要求署名。
+
+牌面映射键（与程序内 tileId 一致）：m1–m9、p1–p9、s1–s9、ew sw ww nw、rd gd wd、f1–f8。
+将下载得到的 png 文件名（数字 ID）填进路径，或复制 manifest.example.json 为 manifest.json 后按需修改。
+本地打开 index.html 时 fetch 可能失败，请用本地静态服务器打开工程根目录（如 npx serve .）。

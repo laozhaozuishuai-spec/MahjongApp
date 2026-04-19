@@ -1,0 +1,3340 @@
+<!DOCTYPE html>
+<!-- MJ-BUILD-STAMP: MJ-2026-04-16 若「查看网页源代码」里看不到此行，说明浏览器不是本文件 -->
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="mj-build" content="MJ-2026-04-16">
+<title>麻将桌</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a1a; overflow: hidden; font-family: system-ui,sans-serif; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+  #c{ position:fixed; left:0; top:0; width:100%; height:100%; display:block; z-index:0; touch-action:none; }
+  #fabNew{
+    position:fixed; right:max(10px,env(safe-area-inset-right)); bottom:max(10px,env(safe-area-inset-bottom));
+    z-index:50; padding:8px 12px; border:none; border-radius:10px; cursor:pointer;
+    background:#3d6b4a; color:#fff; font-size:13px; font-weight:600;
+    box-shadow:0 2px 10px rgba(0,0,0,.35); touch-action:manipulation; min-height:38px; min-width:38px;
+  }
+  #toast{
+    position:fixed; left:50%; bottom:max(72px,env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:110;
+    background:rgba(0,0,0,.78); color:#f5f0e8; padding:10px 16px; border-radius:10px;
+    font-size:14px; pointer-events:none; display:none; max-width:min(90vw,420px); text-align:center;
+  }
+  #netPanel{
+    position:fixed; left:max(6px,env(safe-area-inset-left)); top:max(6px,env(safe-area-inset-top));
+    z-index:60; display:flex; flex-wrap:wrap; align-items:center; gap:4px; max-width:min(280px,78vw);
+    padding:4px 6px; border-radius:8px; background:rgba(0,0,0,.5); color:#f0ebe3; font-size:11px;
+    touch-action:manipulation;
+  }
+  #netPanel input{
+    width:min(118px,32vw); max-width:32vw; padding:3px 6px; border-radius:6px; border:1px solid #444;
+    background:#222; color:#eee; font-size:11px;
+  }
+  #netPanel input#netUrl{ width:min(150px,38vw); }
+  #netPanel input#netRoom{ width:min(72px,20vw); }
+  #netPanel button{
+    padding:3px 7px; border:none; border-radius:6px; cursor:pointer; font-size:11px;
+    background:#2d4a6e; color:#fff; min-height:28px;
+  }
+  #netPanel button#netDisconnect{ background:#5a3a3a; }
+  #netStatus{ opacity:.92; font-size:10px; width:100%; flex-basis:100%; margin-top:1px; line-height:1.2; }
+  #netHint{ flex-basis:100%; font-size:9px; opacity:.8; line-height:1.25; }
+  #drawCountBtn{
+    position:fixed; right:max(12px,env(safe-area-inset-right)); top:max(12px,env(safe-area-inset-top));
+    z-index:55; width:min(56px,18vw); min-height:72px; border-radius:8px; border:1px solid #555;
+    background:linear-gradient(180deg,#3a3a3a,#252525); color:#f0ebe3; font-size:15px; font-weight:700;
+    cursor:pointer; touch-action:manipulation; display:none; flex-direction:column; align-items:center; justify-content:center;
+    padding:6px 4px; line-height:1.15; box-shadow:0 2px 10px rgba(0,0,0,.45);
+  }
+  #drawCountBtn.visible{ display:flex; }
+  #drawCountMenu{
+    position:fixed; z-index:56; display:none; flex-wrap:wrap; gap:6px; padding:10px; max-width:min(280px,90vw);
+    background:rgba(0,0,0,.88); border-radius:12px; right:max(12px,env(safe-area-inset-right)); top:max(92px,env(safe-area-inset-top));
+    box-shadow:0 4px 20px rgba(0,0,0,.5);
+  }
+  #drawCountMenu.open{ display:flex; }
+  #drawCountMenu button{
+    min-width:40px; min-height:40px; border-radius:8px; border:1px solid #555; background:#2d4a6e; color:#fff; font-size:15px; cursor:pointer;
+  }
+  #diceGate{
+    position:fixed; inset:0; z-index:200; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.55); touch-action:manipulation; pointer-events:auto;
+  }
+  #diceGate.open{ display:flex !important; }
+  #diceGateInner{ text-align:center; color:#f5f0e8; max-width:90vw; }
+  #btnRollDice{
+    margin-top:16px; padding:14px 28px; font-size:17px; font-weight:600; border:none; border-radius:12px;
+    background:#3d6b4a; color:#fff; cursor:pointer; min-height:48px;
+  }
+  #diceHint{ font-size:14px; opacity:.9; margin-top:10px; line-height:1.45; }
+  /** 构建号：必须能直接看到；若看不到说明当前页不是 MahjongApp/index.html 或未加载最新文件 */
+  #mjBuildStamp{
+    position:fixed; right:6px; bottom:max(6px,env(safe-area-inset-bottom)); z-index:400;
+    max-width:min(72vw,260px); padding:3px 6px; border-radius:5px;
+    font:9px/1.25 ui-monospace,Consolas,monospace; color:#8a8a8a;
+    background:rgba(0,0,0,.55); border:1px solid #333; pointer-events:none;
+    text-align:right; word-break:break-all; opacity:.85;
+  }
+</style>
+</head>
+<body>
+<input type="checkbox" id="optFlowers" checked hidden>
+<input type="checkbox" id="optHonors" checked hidden>
+<div id="mjBuildStamp" title="构建标识：与 window.__MJ_BUILD 一致；看不到请确认用 http 打开本仓库根目录 index.html">MJ-2026-04-15-tail-ghost-col loading…</div>
+<button type="button" id="fabNew" title="新局洗牌">新局</button>
+<button type="button" id="drawCountBtn" title="本机每次从牌山连续取几张（仅影响自己，不与联机同步）。点按切换摸4/摸1，长按选1～8张" aria-label="摸牌张数">摸4</button>
+<div id="drawCountMenu" aria-label="选择摸牌张数"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="netPanel" aria-label="联机试玩" title="联机：终端 cd server &amp;&amp; npm start（默认 31987）；用 http 打开本页；同房间名即同桌，加入顺序占座东南西北">
+  <input type="text" id="netUrl" value="ws://127.0.0.1:31987" autocomplete="off" placeholder="ws://地址:端口" title="WebSocket 中继（默认 31987）">
+  <input type="text" id="netRoom" value="room1" maxlength="64" autocomplete="off" placeholder="房间" title="同一房间名即同一桌">
+  <button type="button" id="netConnect">连接</button>
+  <button type="button" id="netDisconnect">断开</button>
+  <span id="netStatus">联机：未连接（本地单机）</span>
+  <span id="netHint">http 打开本页 · 中继默认 31987 · 同房间同桌</span>
+</div>
+<canvas id="c"></canvas>
+<div id="diceGate" aria-hidden="true">
+  <div id="diceGateInner">
+    <div style="font-size:18px;font-weight:600">开局掷骰</div>
+    <p id="diceHint">掷骰仅为展示。开局后点牌山摸牌，张数见右上角。</p>
+    <button type="button" id="btnRollDice">掷骰子</button>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/** 构建标识：控制台 window.__MJ_BUILD；页面右下角 #mjBuildStamp 同步显示 */
+window.__MJ_BUILD='MJ-2026-04-16 MahjongApp/index.html';
+(function mjStamp(){
+  var el=document.getElementById('mjBuildStamp');
+  if(el) el.textContent=window.__MJ_BUILD+' | '+String(location.pathname||'');
+})();
+/**
+ * 手牌/副露/旁置条：先在「南家基准」桌系 xz 下计算（与南家相同几何），再按座位绕 Y 旋转到世界坐标（北 180°，东 90°，西 270°）。
+ * localSeat/viewerSeat 为联机分配的本家；联机仅同步 tableState；__mjPendingNet 避免纹理未就绪时先 newGame 再被覆盖。
+ */
+/**
+ * 计费 / 计时：唯一可信来源在服务端（如云函数 + 持久化 + Stripe webhook）。
+ * 客户端只展示服务端下发的剩余时长、余额状态；禁止用本地时钟做扣费或关房依据。
+ */
+const W = window.innerWidth, H = window.innerHeight;
+const renderer = new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+renderer.setSize(W,H); renderer.shadowMap.enabled=true;
+if(renderer.outputEncoding!==undefined) renderer.outputEncoding=THREE.sRGBEncoding;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a1a);
+/** 桌面边长（与牌山 wallOffset 配套）；相对旧 9×9 桌面的缩放，用于相机与雾 */
+const REF_TABLE_TOP=9;
+const TABLE_TOP_SIZE=11.6;
+const TABLE_FELT_SIZE=11.0;
+const TABLE_LEG_POS=TABLE_TOP_SIZE*(5.6/11.6);
+const LAYOUT_SCALE=TABLE_TOP_SIZE/REF_TABLE_TOP;
+scene.fog=new THREE.Fog(0x1a1a1a,15*LAYOUT_SCALE,38*LAYOUT_SCALE);
+
+const camera=new THREE.PerspectiveCamera(30,W/H,0.1,100);
+/** 机位随 LAYOUT_SCALE 与牌桌同步拉远，俯视牌山—花牌—立牌 */
+const SEAT_CAMERA_Y=4.35*LAYOUT_SCALE;
+const SEAT_CAMERA_R=9.2*LAYOUT_SCALE;
+camera.position.set(0,SEAT_CAMERA_Y,SEAT_CAMERA_R);
+const lookAtYDefault=-0.12;
+let lookAtY=lookAtYDefault;
+const lookAtPt=new THREE.Vector3(0,lookAtYDefault,0);
+camera.lookAt(lookAtPt);
+
+scene.add(new THREE.AmbientLight(0xfff5e0,0.5));
+const spot=new THREE.SpotLight(0xffffff,2,25,Math.PI/5,0.3,1);
+spot.position.set(0,12*LAYOUT_SCALE,0); spot.castShadow=true;
+spot.shadow.mapSize.width=spot.shadow.mapSize.height=2048;
+scene.add(spot);
+
+const tableTop=new THREE.Mesh(new THREE.BoxGeometry(TABLE_TOP_SIZE,0.2,TABLE_TOP_SIZE),new THREE.MeshStandardMaterial({color:0x8B5E1A,roughness:0.5}));
+tableTop.position.y=-0.1; scene.add(tableTop);
+const felt=new THREE.Mesh(new THREE.BoxGeometry(TABLE_FELT_SIZE,0.05,TABLE_FELT_SIZE),new THREE.MeshStandardMaterial({color:0x1a5c2a,roughness:0.9}));
+felt.position.y=0.05; scene.add(felt);
+[[-TABLE_LEG_POS,TABLE_LEG_POS],[-TABLE_LEG_POS,-TABLE_LEG_POS],[TABLE_LEG_POS,TABLE_LEG_POS],[TABLE_LEG_POS,-TABLE_LEG_POS]].forEach(([x,z])=>{
+  const leg=new THREE.Mesh(new THREE.BoxGeometry(0.3,3,0.3),new THREE.MeshStandardMaterial({color:0x6b3a10}));
+  leg.position.set(x,-1.6,z); scene.add(leg);
+});
+
+/** 各座位默认机位（与 LAYOUT_SCALE、牌桌尺寸一致） */
+const SEAT_CAMERA_WORLD={
+  S:[0,SEAT_CAMERA_Y,SEAT_CAMERA_R],
+  N:[0,SEAT_CAMERA_Y,-SEAT_CAMERA_R],
+  E:[SEAT_CAMERA_R,SEAT_CAMERA_Y,0],
+  W:[-SEAT_CAMERA_R,SEAT_CAMERA_Y,0]
+};
+
+/** 牌桌动态层：状态同步时整组清空重画，便于接 Firebase */
+const playGroup=new THREE.Group();
+scene.add(playGroup);
+/** 开局掷骰 3D（世界坐标，不随 playContent 清空） */
+const diceWorldGroup=new THREE.Group();
+diceWorldGroup.visible=false;
+scene.add(diceWorldGroup);
+let diceAnimState=null;
+/** 桌面内容（每帧清空）；拖拽幽灵也挂在此下，与立牌同一父级，避免与 playGroup 兄弟节点变换不一致 */
+const playContent=new THREE.Group();
+playGroup.add(playContent);
+const dragGhostGroup=new THREE.Group();
+playContent.add(dragGhostGroup);
+/**
+ * 世界 XZ → 「桌系」局部 XZ（playGroup 局部空间 = 固定牌桌模型坐标，与 viewer 无关）。
+ * playGroup 不随视角旋转；射线世界点先转桌系，本家交互再经 worldXZToSouthFrameXZ 与南家基准布局一致。
+ */
+function worldXZToTableLocalXZ(wx,wz){
+  return worldPointToTableLocalXZ(wx,0,wz);
+}
+/** 世界坐标（含高度）→ 桌系 XZ；透视命中手牌区时必须用射线所在高度的 y，不能用 0 代替 */
+function worldPointToTableLocalXZ(wx,wy,wz){
+  playGroup.updateMatrixWorld(true);
+  const inv=new THREE.Matrix4().copy(playGroup.matrixWorld).invert();
+  const v=new THREE.Vector3(wx,wy,wz);
+  v.applyMatrix4(inv);
+  return{x:v.x,z:v.z};
+}
+/** 世界点 → dragGhostGroup 局部（幽灵父级即手牌同级，须用该节点逆矩阵） */
+function worldXYZToDragGhostGroupLocal(wx,wy,wz){
+  dragGhostGroup.updateMatrixWorld(true);
+  const inv=new THREE.Matrix4().copy(dragGhostGroup.matrixWorld).invert();
+  const v=new THREE.Vector3(wx,wy,wz);
+  v.applyMatrix4(inv);
+  return v;
+}
+
+// ── 圆角牌形状 ───────────────────────────────────────
+function roundedShape(w,h,r){
+  const s=new THREE.Shape();
+  s.moveTo(-w/2+r,-h/2); s.lineTo(w/2-r,-h/2);
+  s.quadraticCurveTo(w/2,-h/2,w/2,-h/2+r); s.lineTo(w/2,h/2-r);
+  s.quadraticCurveTo(w/2,h/2,w/2-r,h/2); s.lineTo(-w/2+r,h/2);
+  s.quadraticCurveTo(-w/2,h/2,-w/2,h/2-r); s.lineTo(-w/2,-h/2+r);
+  s.quadraticCurveTo(-w/2,-h/2,-w/2+r,-h/2);
+  return s;
+}
+
+// 牌尺寸（整体 1.3 倍）
+const TW=0.364, TH=0.494, TD=0.169;
+/** 立牌正面纹样相对牌体几何下移 */
+const GLYPH_STAND_Y=-TH*0.095;
+const STEP=TW, SY=TH/2+0.09;
+/** 花牌平铺间距（与主牌左缘同一基准） */
+const FLOWER_GAP=TW*1.08;
+const FLOWER_SLOTS_MAX=16;
+/** 主牌与最靠手牌一侧副露之间只留半张牌宽 */
+const MELD_GAP_FROM_HAND=TW*0.5;
+/** 每组吃碰杠之间的空隙（半张牌宽） */
+const MELD_GAP_BETWEEN_GROUPS=TW*0.5;
+/** 吃碰杠准备区宽度（含三张杠准备），避免与副露牌重叠 */
+const PREP_BAND_WIDTH=STEP*3.35;
+/**
+ * 牌山半径、桌缘、花牌带、南家立牌深度：以 REF_TABLE_TOP 为基准成比例缩放（×LAYOUT_SCALE），
+ * 与放大后的桌面、相机一致，把手牌区/花牌区推到牌山外侧，避免与牌山叠在同一半径上。
+ */
+const REF_WALL_OFFSET=3.0;
+const REF_TABLE_EDGE_FROM_CENTER=3.8;
+const wallOffset=REF_WALL_OFFSET*LAYOUT_SCALE;
+const TABLE_EDGE_FROM_CENTER=REF_TABLE_EDGE_FROM_CENTER*LAYOUT_SCALE;
+const SOUTH_HAND_FIXED_Z=REF_TABLE_EDGE_FROM_CENTER*LAYOUT_SCALE;
+/** 花牌带南家基准 z：牌山半径 wallOffset 与主牌桌缘 z 的中点，落在牌山与主牌之间 */
+const FLOWER_STRIP_Z_SOUTH=(wallOffset+SOUTH_HAND_FIXED_Z)*0.5;
+const RIVER_INNER=Math.max(1.35*LAYOUT_SCALE,wallOffset*0.447);
+/** 弃牌落在牌山围成的桌面中央；河牌中心最小间距；拖动超过此像素才算拖拽 */
+const RIVER_MIN_CENTER_DIST=TW*0.92;
+const COARSE_POINTER=typeof window!=='undefined'&&window.matchMedia&&window.matchMedia('(pointer: coarse)').matches;
+const DRAG_START_PX=COARSE_POINTER?6:10;
+/** 先向上抬过此阈值再左右移动，视为理牌（插入空档），而非直接拖向河/准备区 */
+const SORT_LIFT_PX=COARSE_POINTER?14:18;
+/** 手牌展示用参考跨度（非上限；张数可任意多，相公亦允许） */
+const HAND_VISUAL_SPAN=5.9;
+// 立牌（手牌）：正面朝向rotY方向
+// ExtrudeGeometry 两盖共用 mat[0]，背面蓝：在朝玩家一侧的外法线端叠 ShapeGeometry（与轮廓一致），
+// MeshBasicMaterial 不受光照影响；polygonOffset 减轻 z-fighting
+
+function makeTileStand(mode='face', backBlueOnMaxZ=true){
+  const shape=roundedShape(TW,TH,0.078);
+  const geo=new THREE.ExtrudeGeometry(shape,{
+    depth:TD, bevelEnabled:true,
+    bevelThickness:0.014, bevelSize:0.014, bevelSegments:4
+  });
+  const sideMat=new THREE.MeshStandardMaterial({color:0xf5f0e0,roughness:0.4});
+  if(mode==='back'){
+    const lidMat=new THREE.MeshStandardMaterial({color:0xf5f0e0,roughness:0.3});
+    const main=new THREE.Mesh(geo,[lidMat,sideMat]);
+    geo.computeBoundingBox();
+    const bb=geo.boundingBox;
+    const blueGeo=new THREE.ShapeGeometry(shape);
+    const blueMat=new THREE.MeshBasicMaterial({
+      color:0x4a7ad4, side:THREE.DoubleSide,
+      polygonOffset:true, polygonOffsetFactor:-4, polygonOffsetUnits:-4
+    });
+    const backFace=new THREE.Mesh(blueGeo,blueMat);
+    backFace.scale.set(1.008,1.008,1);
+    if(backBlueOnMaxZ){
+      backFace.position.z=bb.max.z+0.005;
+    } else {
+      backFace.rotation.x=Math.PI;
+      backFace.position.z=bb.min.z-0.005;
+    }
+    const g=new THREE.Group();
+    g.add(main); g.add(backFace);
+    return g;
+  }
+  const faceColor=mode==='flower'?0xe8c84a:0xf5f0e0;
+  const lidMat=new THREE.MeshStandardMaterial({color:faceColor,roughness:0.3});
+  return new THREE.Mesh(geo,[lidMat,sideMat]);
+}
+
+// 平放牌（牌山、弃牌、吃碰杠）：背面朝上
+function makeTileFlat(mode='back'){
+  const shape=roundedShape(TW,TH,0.078);
+  const geo=new THREE.ExtrudeGeometry(shape,{
+    depth:TD, bevelEnabled:true,
+    bevelThickness:0.014, bevelSize:0.014, bevelSegments:4
+  });
+  // 平放：绕X轴转-90度，让牌躺下；lid(mat[0])为朝上/朝下两面
+  geo.rotateX(-Math.PI/2);
+  const lidColor = mode==='back' ? 0x4a7ad4 : mode==='flower' ? 0xe8c84a : 0xf5f0e0;
+  return new THREE.Mesh(geo,[
+    new THREE.MeshStandardMaterial({color:lidColor,roughness:0.3}),
+    new THREE.MeshStandardMaterial({color:0xf5f0e0,roughness:0.4})
+  ]);
+}
+
+// ── 开局牌组配置（联机后应与房间文档一致，由房主/共识决定）────────────────
+/** @typedef {{flowers:boolean,honors:boolean}} TileSetConfig */
+function totalTilesInSet(cfg){
+  let n=108;
+  if(cfg.honors) n+=28;
+  if(cfg.flowers) n+=8;
+  return n;
+}
+function readTileSetConfigFromUI(){
+  return{
+    flowers:!!document.getElementById('optFlowers').checked,
+    honors:!!document.getElementById('optHonors').checked
+  };
+}
+
+// ── 牌张编码：m1–m9 万、p 筒、s 条；字牌 ew/sw/nw/ww、wd/gd/rd；花 f1–f8 ──
+function buildDeck(cfg){
+  const d=[];
+  for(let n=1;n<=9;n++) for(let k=0;k<4;k++){ d.push('m'+n); d.push('p'+n); d.push('s'+n); }
+  if(cfg.honors){
+    ['ew','sw','nw','ww','wd','gd','rd'].forEach(t=>{ for(let k=0;k<4;k++) d.push(t); });
+  }
+  if(cfg.flowers) for(let i=1;i<=8;i++) d.push('f'+i);
+  return d;
+}
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function disposeObject3D(o){
+  o.traverse(ch=>{
+    if(ch.isMesh){
+      ch.geometry?.dispose?.();
+      const mats=Array.isArray(ch.material)?ch.material:[ch.material];
+      mats.forEach(mat=>{
+        if(mat?.map&&!mat.userData?.sharedTex) mat.map.dispose?.();
+        mat?.dispose?.();
+      });
+    }
+  });
+}
+function clearPlayGroup(){
+  const arr=Array.from(playContent.children);
+  for(let i=0;i<arr.length;i++){
+    const ch=arr[i];
+    if(ch===dragGhostGroup) continue;
+    playContent.remove(ch);
+    disposeObject3D(ch);
+  }
+}
+
+/** 牌面：浅浮雕感底 + 高对比纹样（不依赖 emoji） */
+const CN_NUM=['〇','一','二','三','四','五','六','七','八','九'];
+const HONOR_TXT={ew:'東',sw:'南',ww:'西',nw:'北',rd:'中',gd:'發',wd:'白'};
+const FLOWER_TXT=['梅','兰','竹','菊','春','夏','秋','冬'];
+const GLYPH_TEX_VER='riichi-raster-canvas-v9-flowers';
+/** riichi-mahjong-tiles（Regular）：先栅格化到 canvas 再建 CanvasTexture，避免 SVG 直绑 WebGL 在联机首帧空白 */
+const RIICHI_TILE_BASE='assets/riichi-mahjong-tiles/Regular/';
+const RIICHI_RASTER_SIZE=384;
+const RIICHI_SVG={
+  m1:'Man1',m2:'Man2',m3:'Man3',m4:'Man4',m5:'Man5',m6:'Man6',m7:'Man7',m8:'Man8',m9:'Man9',
+  p1:'Pin1',p2:'Pin2',p3:'Pin3',p4:'Pin4',p5:'Pin5',p6:'Pin6',p7:'Pin7',p8:'Pin8',p9:'Pin9',
+  s1:'Sou1',s2:'Sou2',s3:'Sou3',s4:'Sou4',s5:'Sou5',s6:'Sou6',s7:'Sou7',s8:'Sou8',s9:'Sou9',
+  ew:'Ton',sw:'Nan',ww:'Shaa',nw:'Pei',
+  rd:'Chun',gd:'Hatsu',wd:'Haku'
+};
+const riichiGlyphTexCache=new Map();
+let riichiLoadPromise=null;
+function initRiichiTextures(){
+  if(riichiLoadPromise) return riichiLoadPromise;
+  const loader=new THREE.TextureLoader();
+  const maxA=renderer.capabilities&&renderer.capabilities.getMaxAnisotropy
+    ? renderer.capabilities.getMaxAnisotropy()
+    : 1;
+  riichiLoadPromise=Promise.all(
+    Object.entries(RIICHI_SVG).map(([tid,stem])=>new Promise(res=>{
+      let retries=0;
+      loader.load(
+        RIICHI_TILE_BASE+stem+'.svg',
+        tex=>{
+          const img=tex.image;
+          const finishFail=()=>{ try{ tex.dispose(); }catch(_){} res(); };
+          const build=()=>{
+            const iw=img.naturalWidth||img.width||0;
+            const ih=img.naturalHeight||img.height||0;
+            if(iw<1||ih<1){
+              if(retries<6){
+                retries++;
+                requestAnimationFrame(build);
+                return;
+              }
+              finishFail();
+              return;
+            }
+            try{
+              const c=document.createElement('canvas');
+              c.width=RIICHI_RASTER_SIZE;
+              c.height=RIICHI_RASTER_SIZE;
+              const ctx=c.getContext('2d',{willReadFrequently:true});
+              const S=RIICHI_RASTER_SIZE;
+              ctx.fillStyle='#f5f0e8';
+              ctx.fillRect(0,0,S,S);
+              ctx.drawImage(img,0,0,S,S);
+              let hasInk=false;
+              try{
+                const pts=[[S/2|0,S/2|0],[S/2|0,(S*0.28)|0],[S/2|0,(S*0.72)|0],[(S*0.35)|0,S/2|0],[(S*0.65)|0,S/2|0]];
+                for(let i=0;i<pts.length;i++){
+                  const d=ctx.getImageData(pts[i][0],pts[i][1],1,1).data;
+                  if(d[3]>8){ hasInk=true; break; }
+                }
+              }catch(_){
+                finishFail();
+                return;
+              }
+              if(!hasInk){
+                finishFail();
+                return;
+              }
+              const ct=new THREE.CanvasTexture(c);
+              if(ct.flipY!==undefined) ct.flipY=true;
+              ct.needsUpdate=true;
+              if(ct.encoding!==undefined) ct.encoding=THREE.sRGBEncoding;
+              ct.minFilter=THREE.LinearFilter;
+              ct.magFilter=THREE.LinearFilter;
+              ct.anisotropy=maxA;
+              riichiGlyphTexCache.set(tid,ct);
+            }catch(_){
+              finishFail();
+              return;
+            }
+            try{ tex.dispose(); }catch(_){}
+            res();
+          };
+          if(img&&typeof img.decode==='function'){
+            img.decode().then(build).catch(build);
+          }else{
+            build();
+          }
+        },
+        undefined,
+        ()=>res()
+      );
+    }))
+  );
+  return riichiLoadPromise;
+}
+function showToast(msg){
+  const el=document.getElementById('toast');
+  if(!el) return;
+  el.textContent=msg;
+  el.style.display='block';
+  clearTimeout(showToast._t);
+  showToast._t=setTimeout(()=>{ el.style.display='none'; },2600);
+}
+function roundRectPath(ctx,x,y,ww,hh,r){
+  const rr=Math.min(r,ww/2,hh/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr,y);
+  ctx.arcTo(x+ww,y,x+ww,y+hh,rr);
+  ctx.arcTo(x+ww,y+hh,x,y+hh,rr);
+  ctx.arcTo(x,y+hh,x,y,rr);
+  ctx.arcTo(x,y,x+ww,y,rr);
+  ctx.closePath();
+}
+/** 仿骨牌：暖象牙底 + 内外双线（实体牌质感） */
+function drawFaceBackground(ctx,w,h){
+  const g=ctx.createLinearGradient(0,0,w,h);
+  g.addColorStop(0,'#fffdf8');
+  g.addColorStop(0.45,'#f5ebe0');
+  g.addColorStop(1,'#e8dcc8');
+  ctx.fillStyle=g;
+  roundRectPath(ctx,2,2,w-4,h-4,14);
+  ctx.fill();
+  ctx.strokeStyle='#6b5344';
+  ctx.lineWidth=2.2;
+  roundRectPath(ctx,2.5,2.5,w-5,h-5,13.5);
+  ctx.stroke();
+  ctx.strokeStyle='rgba(100,80,55,0.45)';
+  ctx.lineWidth=1;
+  roundRectPath(ctx,7,7,w-14,h-14,11);
+  ctx.stroke();
+}
+/** 筒子：立体饼纹 + 中心高光 */
+function drawTongCircle(ctx,x,y,R,isRed){
+  ctx.save();
+  const edge=isRed?'#8b1530':'#0f4d2a';
+  const fill=isRed?'#ffd4dc':'#c8f0d4';
+  const mid=isRed?'#f43f5e':'#16a34a';
+  const rg=ctx.createRadialGradient(x-R*0.35,y-R*0.35,R*0.05,x,y,R);
+  rg.addColorStop(0,isRed?'#fecdd3':'#d1fae5');
+  rg.addColorStop(0.55,mid);
+  rg.addColorStop(1,isRed?'#9f1239':'#14532d');
+  ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2);
+  ctx.fillStyle=rg; ctx.fill();
+  ctx.strokeStyle=edge; ctx.lineWidth=Math.max(2,R*0.15); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x,y,R*0.72,0,Math.PI*2);
+  ctx.fillStyle=fill; ctx.fill();
+  ctx.strokeStyle=edge; ctx.lineWidth=1.2;
+  ctx.stroke();
+  ctx.fillStyle=isRed?'#e11d48':'#15803d';
+  for(let k=0;k<8;k++){
+    const a=(k/8)*Math.PI*2-Math.PI/8;
+    ctx.beginPath();
+    ctx.arc(x+Math.cos(a)*R*0.38,y+Math.sin(a)*R*0.38,R*0.095,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.beginPath(); ctx.arc(x,y,R*0.14,0,Math.PI*2);
+  ctx.fillStyle='#fffef8'; ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.06)'; ctx.lineWidth=0.5; ctx.stroke();
+  ctx.restore();
+}
+/** 一筒：居中一大花，红绿相间（常见牌面） */
+function drawOneDot(ctx,cx,cy,R0){
+  const R=R0*1.45;
+  ctx.save();
+  for(let k=0;k<8;k++){
+    const a=(k/8)*Math.PI*2-Math.PI/2;
+    const red=k%2===0;
+    ctx.beginPath();
+    ctx.ellipse(cx+Math.cos(a)*R*0.52,cy+Math.sin(a)*R*0.52,R*0.22,R*0.38,a+Math.PI/2,0,Math.PI*2);
+    ctx.fillStyle=red?'#dc2626':'#15803d';
+    ctx.fill();
+  }
+  drawTongCircle(ctx,cx,cy,R*0.55,true);
+  drawTongCircle(ctx,cx,cy,R*0.28,false);
+  ctx.restore();
+}
+function drawDots(ctx,w,h,n){
+  const cx=w/2, cy=h/2, R=Math.min(w,h)*0.07;
+  const T=(x,y,red,sc=1)=>drawTongCircle(ctx,x,y,R*0.92*sc,red);
+  if(n===1){
+    drawOneDot(ctx,cx,cy,R);
+    return;
+  }
+  if(n===2){
+    T(cx-h*0.18,cy-h*0.18,true);
+    T(cx+h*0.18,cy+h*0.18,false);
+    return;
+  }
+  if(n===3){
+    const d=h*0.2;
+    T(cx-d,cy+d,true); T(cx,cy,false); T(cx+d,cy-d,true);
+    return;
+  }
+  if(n===4){
+    T(cx-h*0.2,cy-h*0.2,false); T(cx+h*0.2,cy-h*0.2,true);
+    T(cx-h*0.2,cy+h*0.2,true); T(cx+h*0.2,cy+h*0.2,false);
+    return;
+  }
+  if(n===5){
+    const d=h*0.22;
+    T(cx-d,cy-d,false); T(cx+d,cy-d,false);
+    T(cx,cy,true,1.22);
+    T(cx-d,cy+d,false); T(cx+d,cy+d,false);
+    return;
+  }
+  if(n===6){
+    for(let r=0;r<3;r++){
+      T(cx-h*0.22,cy-h*0.22+h*0.2*r,false);
+      T(cx+h*0.22,cy-h*0.22+h*0.2*r,true);
+    }
+    return;
+  }
+  if(n===7){
+    for(let r=0;r<3;r++){
+      T(cx-h*0.22,cy-h*0.28+h*0.2*r,false);
+      T(cx+h*0.22,cy-h*0.28+h*0.2*r,true);
+    }
+    T(cx,cy+h*0.32,true);
+    return;
+  }
+  if(n===8){
+    for(let r=0;r<4;r++){
+      T(cx-h*0.22,cy-h*0.35+h*0.2*r,false);
+      T(cx+h*0.22,cy-h*0.35+h*0.2*r,true);
+    }
+    return;
+  }
+  for(let r=0;r<3;r++) for(let c=0;c<3;c++)
+    T(cx+(c-1)*h*0.24,cy+(r-1)*h*0.24,c!==1);
+}
+function drawStick(ctx,x,y0,y1,sw,isRed){
+  const lg=ctx.createLinearGradient(x-sw/2,y0,x+sw/2,y1);
+  if(isRed){ lg.addColorStop(0,'#7f1d1d'); lg.addColorStop(0.5,'#ef4444'); lg.addColorStop(1,'#991b1b'); }
+  else{ lg.addColorStop(0,'#064e3b'); lg.addColorStop(0.5,'#22c55e'); lg.addColorStop(1,'#14532d'); }
+  ctx.fillStyle=lg;
+  ctx.fillRect(x-sw/2,y0,sw,y1-y0);
+  ctx.fillStyle='rgba(0,0,0,0.15)';
+  ctx.fillRect(x-sw/2,y1-1.5,sw,1.5);
+}
+function drawOneBird(ctx,cx,cy,h){
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.strokeStyle='#166534'; ctx.lineWidth=h*0.04; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-h*0.2,h*0.12); ctx.quadraticCurveTo(0,-h*0.1,h*0.22,h*0.08);
+  ctx.stroke();
+  ctx.beginPath(); ctx.arc(-h*0.05,-h*0.02,h*0.08,0,Math.PI*2);
+  ctx.fillStyle='#15803d'; ctx.fill();
+  ctx.beginPath(); ctx.arc(h*0.1,-h*0.05,h*0.05,0,Math.PI*2);
+  ctx.fillStyle='#14532d'; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-h*0.2,h*0.1); ctx.lineTo(-h*0.35,h*0.22); ctx.stroke();
+  ctx.restore();
+}
+function drawBambooLayout(ctx,w,h,n){
+  const cx=w/2, cy=h/2, len=h*0.35, sw=Math.min(w,h)*0.065, sp=Math.min(w,h)*0.108;
+  if(n===1){
+    drawOneBird(ctx,cx,cy,h);
+    return;
+  }
+  const pat=[
+    null,
+    null,
+    [[0,0],[0,1]],
+    [[0,0],[0,1],[0,2]],
+    [[0,0],[0,1],[1,0],[1,1]],
+    [[0,0],[0,2],[1,1],[2,0],[2,2]],
+    [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],
+    [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,1]],
+    [[0,0],[0,1],[0,2],[0,3],[1,0],[1,1],[1,2],[1,3]],
+    [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]]
+  ];
+  const isRed=(i,n)=>{
+    if(n===2) return i===1;
+    if(n===4) return i===0||i===3;
+    if(n===5) return i===2;
+    if(n===6) return i%2===1;
+    if(n===7) return i===6;
+    if(n===8) return i%2===1;
+    if(n===9) return false;
+    return false;
+  };
+  const cfg=pat[n];
+  if(!cfg){
+    ctx.font=`bold ${Math.floor(h*0.44)}px "Kaiti SC","Songti SC",serif`;
+    ctx.fillStyle='#14532d'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(CN_NUM[n]+'条',cx,cy);
+    return;
+  }
+  const rows=Math.max(...cfg.map(p=>p[0]))+1, cols=Math.max(...cfg.map(p=>p[1]))+1;
+  const ox=-(cols-1)*sp/2, oy=-(rows-1)*sp/2;
+  cfg.forEach((p,i)=>{
+    const [r,c]=p;
+    const x=cx+ox+c*sp, y0=cy+oy+r*sp-len/2, y1=y0+len;
+    drawStick(ctx,x,y0,y1,sw,isRed(i,n));
+  });
+}
+function drawShadowText(ctx,txt,cx,cy,fillStyle,blur){
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle='rgba(0,0,0,0.14)';
+  ctx.fillText(txt,cx+blur,cy+blur);
+  ctx.fillStyle=fillStyle;
+  ctx.fillText(txt,cx,cy);
+}
+function drawWanTile(ctx,w,h,n){
+  const cx=w/2, cy=h/2;
+  ctx.font=`bold ${Math.floor(h*0.6)}px "Kaiti SC","Songti SC","STSong","SimSun","PingFang SC","Microsoft YaHei",serif`;
+  const tg=ctx.createLinearGradient(cx,cy-h*0.34,cx,cy+h*0.06);
+  tg.addColorStop(0,'#0a0908');
+  tg.addColorStop(1,'#3f3a36');
+  drawShadowText(ctx,CN_NUM[n],cx,cy-h*0.1,tg,3);
+  ctx.font=`bold ${Math.floor(h*0.44)}px "Kaiti SC","Songti SC","PingFang SC",serif`;
+  drawShadowText(ctx,'萬',cx,cy+h*0.19,'#a61b1b',2);
+}
+function drawHonorTile(ctx,w,h,tileId){
+  const cx=w/2, cy=h/2, t=HONOR_TXT[tileId], sz=Math.floor(h*0.54);
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  if(tileId==='ew'||tileId==='sw'||tileId==='ww'||tileId==='nw'){
+    ctx.font=`bold ${sz}px "Kaiti SC","Songti SC","PingFang SC","Microsoft YaHei",serif`;
+    drawShadowText(ctx,t,cx,cy,'#141110',3);
+  }else if(tileId==='rd'){
+    ctx.font=`bold ${Math.floor(h*0.64)}px "Kaiti SC","Songti SC","PingFang SC",serif`;
+    drawShadowText(ctx,t,cx,cy,'#c41e1e',2);
+  }else if(tileId==='gd'){
+    ctx.font=`bold ${Math.floor(h*0.64)}px "Kaiti SC","Songti SC","PingFang SC",serif`;
+    drawShadowText(ctx,t,cx,cy,'#0d7a3a',2);
+  }else if(tileId==='wd'){
+    const rx=cx-h*0.33, ry=cy-h*0.33, rw=h*0.66, rh=h*0.66, ix=0.075*h;
+    roundRectPath(ctx,rx,ry,rw,rh,5);
+    ctx.strokeStyle='#1e3a5f'; ctx.lineWidth=2.8; ctx.stroke();
+    roundRectPath(ctx,rx+ix,ry+ix,rw-2*ix,rh-2*ix,4);
+    ctx.strokeStyle='#475569'; ctx.lineWidth=1.6; ctx.stroke();
+  }
+}
+function drawFlowerMotif(ctx,cx,cy,R,n){
+  ctx.save();
+  ctx.lineCap='round';
+  if(n===1){
+    ctx.strokeStyle='#9f1239'; ctx.lineWidth=R*0.1;
+    ctx.beginPath(); ctx.moveTo(cx-R*0.5,cy+R*0.35); ctx.quadraticCurveTo(cx,cy-R*0.5,cx+R*0.45,cy+R*0.2); ctx.stroke();
+    for(let k=0;k<5;k++){
+      const a=-Math.PI/2+k*0.35;
+      ctx.beginPath(); ctx.arc(cx+Math.cos(a)*R*0.15,cy+Math.sin(a)*R*0.15+R*0.05,R*0.12,0,Math.PI*2);
+      ctx.fillStyle='#fb7185'; ctx.fill();
+    }
+  }else if(n===2){
+    ctx.strokeStyle='#166534'; ctx.lineWidth=R*0.12;
+    ctx.beginPath(); ctx.moveTo(cx,cy+R*0.4); ctx.quadraticCurveTo(cx-R*0.55,cy,cx-R*0.1,cy-R*0.45); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx,cy+R*0.4); ctx.quadraticCurveTo(cx+R*0.55,cy,cx+R*0.1,cy-R*0.45); ctx.stroke();
+    ctx.fillStyle='#a78bfa';
+    for(let k=0;k<3;k++) ctx.fillRect(cx-R*0.08+k*R*0.12,cy-R*0.55,R*0.08,R*0.2);
+  }else if(n===3){
+    for(let i=0;i<3;i++){
+      const x=cx+(i-1)*R*0.22;
+      ctx.fillStyle=i%2===0?'#15803d':'#166534';
+      ctx.fillRect(x-R*0.05,cy-R*0.35,R*0.1,R*0.75);
+    }
+  }else if(n===4){
+    for(let p=0;p<8;p++){
+      const a=(p/8)*Math.PI*2;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(a)*R*0.45,cy+Math.sin(a)*R*0.45);
+      ctx.strokeStyle='#ca8a04'; ctx.lineWidth=R*0.08; ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(cx,cy,R*0.12,0,Math.PI*2); ctx.fillStyle='#facc15'; ctx.fill();
+  }else if(n<=8){
+    const col=n<=6?'#0369a1':'#c2410c';
+    ctx.strokeStyle=col; ctx.lineWidth=R*0.1;
+    ctx.beginPath(); ctx.arc(cx,cy+R*0.05,R*0.5,Math.PI*1.1,Math.PI*1.9); ctx.stroke();
+    ctx.font=`bold ${R*0.95}px "Kaiti SC","Songti SC",serif`;
+    ctx.fillStyle=col; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(['春','夏','秋','冬'][n-5],cx,cy+R*0.02);
+  }
+  ctx.restore();
+}
+function drawFlowerTile(ctx,w,h,n){
+  const cx=w/2, cy=h*0.4, R=h*0.23;
+  const wash=ctx.createRadialGradient(cx,cy-R*0.12,0,cx,cy,h*0.52);
+  wash.addColorStop(0,'#fff8e8');
+  wash.addColorStop(0.4,'rgba(251,191,36,0.35)');
+  wash.addColorStop(1,'rgba(180,83,9,0.28)');
+  ctx.fillStyle=wash;
+  roundRectPath(ctx,h*0.07,h*0.07,w-h*0.14,h*0.6,12);
+  ctx.fill();
+  ctx.strokeStyle='rgba(146,64,14,0.5)'; ctx.lineWidth=1.2;
+  roundRectPath(ctx,h*0.07,h*0.07,w-h*0.14,h*0.6,12);
+  ctx.stroke();
+  drawFlowerMotif(ctx,cx,cy,R,n);
+  const idx=n<=4?n:n-4;
+  ctx.font=`bold ${Math.floor(h*0.12)}px "Kaiti SC",serif`;
+  ctx.fillStyle='#b45309'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText(String(idx),h*0.09,h*0.63);
+  const txt=FLOWER_TXT[n-1]||('花'+n);
+  ctx.font=`bold ${Math.floor(h*0.2)}px "Kaiti SC","Songti SC","PingFang SC",serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle='#713f12';
+  ctx.fillText(txt,cx,h*0.83);
+}
+function drawTileFaceOnCanvas(ctx,w,h,tileId){
+  drawFaceBackground(ctx,w,h);
+  const c=tileId[0], n=parseInt(tileId.slice(1),10)||0;
+  if(c==='m'&&n>=1&&n<=9) drawWanTile(ctx,w,h,n);
+  else if(c==='p'&&n>=1&&n<=9) drawDots(ctx,w,h,n);
+  else if(c==='s'&&n>=1&&n<=9) drawBambooLayout(ctx,w,h,n);
+  else if(HONOR_TXT[tileId]) drawHonorTile(ctx,w,h,tileId);
+  else if(c==='f'&&n>=1&&n<=8) drawFlowerTile(ctx,w,h,n);
+  else{
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='#57534e'; ctx.font=`${h*0.18}px sans-serif`;
+    ctx.fillText(tileId,w/2,h/2);
+  }
+}
+const glyphTexCache=new Map();
+function riichiGlyphTextureUsable(tex){
+  if(!tex||!tex.image) return false;
+  const im=tex.image;
+  if(im.width<8||im.height<8) return false;
+  try{
+    const ctx=im.getContext&&im.getContext('2d');
+    if(!ctx) return true;
+    const w=im.width, h=im.height;
+    const pts=[[w/2|0,h/2|0],[w/2|0,(h*0.28)|0],[w/2|0,(h*0.72)|0],[(w*0.35)|0,h/2|0],[(w*0.65)|0,h/2|0]];
+    for(let i=0;i<pts.length;i++){
+      const d=ctx.getImageData(pts[i][0],pts[i][1],1,1).data;
+      if(d[3]>6) return true;
+    }
+    return false;
+  }catch(_){
+    return false;
+  }
+}
+function getGlyphTexture(tileId){
+  if(riichiGlyphTexCache.has(tileId)){
+    const t=riichiGlyphTexCache.get(tileId);
+    if(riichiGlyphTextureUsable(t)){
+      t.needsUpdate=true;
+      return t;
+    }
+    try{ t.dispose?.(); }catch(_){}
+    riichiGlyphTexCache.delete(tileId);
+  }
+  const key=tileId+GLYPH_TEX_VER;
+  if(glyphTexCache.has(key)){
+    const g=glyphTexCache.get(key);
+    g.needsUpdate=true;
+    return g;
+  }
+  const S=384;
+  const c=document.createElement('canvas'); c.width=S; c.height=S;
+  drawTileFaceOnCanvas(c.getContext('2d'),S,S,tileId);
+  const tex=new THREE.CanvasTexture(c);
+  if(tex.flipY!==undefined) tex.flipY=true;
+  tex.needsUpdate=true;
+  if(tex.encoding!==undefined) tex.encoding=THREE.sRGBEncoding;
+  tex.minFilter=THREE.LinearFilter;
+  tex.magFilter=THREE.LinearFilter;
+  glyphTexCache.set(key,tex);
+  return tex;
+}
+function glyphStandY(){
+  return GLYPH_STAND_Y;
+}
+/** 立牌正面：与平放顶贴片一致关闭 depthTest；否则与挤出牌体共面时透明图层易被深度缓冲吃掉（本家旋转 π 后尤甚），表现为白牌，点按重绘后才显示图案 */
+function makeTileGlyphPlaneStand(tileId){
+  const tex=getGlyphTexture(tileId);
+  const mat=new THREE.MeshBasicMaterial({
+    map:tex,transparent:true,depthTest:false,depthWrite:false,
+    polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4,
+    toneMapped:false,side:THREE.DoubleSide
+  });
+  mat.userData.sharedTex=true;
+  const pl=new THREE.Mesh(new THREE.PlaneGeometry(TW*0.88,TH*0.84),mat);
+  pl.position.set(0,glyphStandY(),TD+0.026);
+  pl.renderOrder=8;
+  return pl;
+}
+/**
+ * 理牌拖拽：立牌幽灵。southRotY 为南家基准下的朝向（与 addLocalHandTileMesh 一致，通常为 0）；
+ * seat 为本家物理座位，内部用 worldYawFromSouthFrame 与落地渲染一致。
+ */
+function makeDragGhostStand(tileId,southRotY,seat){
+  const s=seat!=null?seat:localSeat();
+  const rotY=worldYawFromSouthFrame(southRotY,s);
+  const g=new THREE.Group();
+  const body=makeTileStand('face');
+  g.add(body);
+  g.add(makeTileGlyphPlaneStand(tileId));
+  g.rotation.y=rotY;
+  g.traverse(o=>{ if(o.isMesh) o.renderOrder=99; });
+  return g;
+}
+/** 平放牌顶贴片（略高于牌面；副露/河牌关闭 depthTest 避免与牌体共面被吃掉） */
+function makeTileGlyphPlaneFlat(tileId){
+  const tex=getGlyphTexture(tileId);
+  const mat=new THREE.MeshBasicMaterial({
+    map:tex,transparent:true,depthTest:false,depthWrite:false,
+    polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4,
+    toneMapped:false,side:THREE.DoubleSide
+  });
+  mat.userData.sharedTex=true;
+  const pl=new THREE.Mesh(new THREE.PlaneGeometry(TW*0.88,TH*0.84),mat);
+  pl.rotation.x=-Math.PI/2;
+  pl.position.set(0,TD*0.55+0.055,0);
+  pl.renderOrder=8;
+  return pl;
+}
+function handGap(count){
+  if(count<=1) return STEP;
+  return Math.min(STEP, HAND_VISUAL_SPAN/count);
+}
+
+/**
+ * @typedef {Object} TableState
+ * @property {TileSetConfig} cfg
+ * @property {Record<'S'|'N'|'E'|'W', string[]>} walls 四家门前牌山
+ * @property {Record<'S'|'N'|'E'|'W', number>} wallMaxCols 各家牌山长度（单排），用于布局与开局对齐
+ * @property {Record<'S'|'N'|'E'|'W', string[]>} hands
+ * @property {{by:'S'|'N'|'E'|'W',tile:string,px:number,pz:number}[]} river
+ * @property {Record<'S'|'N'|'E'|'W', {type:string,isMing?:boolean,tiles?:string[]}[]>} melds
+ * @property {Record<'S'|'N'|'E'|'W',(string|null)[]>} meldPrep 各家准备区（两张/三张杠底）
+ * @property {boolean[]} meldPrepFaceUp 准备区每张是否牌面朝上（可与牌背切换）
+ * @property {Record<'S'|'N'|'E'|'W', string[]>} asidePlaced 各家旁置条（从手牌移出展示）
+ * @property {Record<'S'|'N'|'E'|'W',boolean>} southHandFlat 各家主牌是否放倒（平铺；键名历史遗留）
+ * @property {Record<'S'|'N'|'E'|'W',boolean[]>} southHandFlatFaceUp 放倒时每张是否牌面朝上
+ * @property {boolean} wallFirstBatchDone 是否已完成首摸（首摸点哪摸哪；之后点牌山只改顺/逆时针）
+ * @property {number} wallForwardCursorGlobal 环上锚点全局槽位；首摸前点为所点张；摸牌后更新为最后取走张
+ */
+let tableState=null;
+/** 控制台调试用：当前局状态 */
+if(typeof window!=='undefined'){
+  Object.defineProperty(window,'__MJ_TABLE_STATE',{
+    configurable:true,
+    enumerable:false,
+    get(){
+      return tableState;
+    }
+  });
+}
+/** 本机「每次摸几张」1～8，仅存客户端、不参与联机同步（各玩家独立）；默认 4 */
+let localDrawCountSetting=4;
+function getLocalDrawCount(){
+  const n=Number(localDrawCountSetting);
+  return Number.isFinite(n)&&n>=1&&n<=8?n:4;
+}
+/** 本机在桌上的物理座位；单机默认南；联机由中继 join 分配 */
+let mySeat='S';
+function localSeat(){
+  return mySeat==='S'||mySeat==='N'||mySeat==='E'||mySeat==='W'?mySeat:'S';
+}
+function viewerSeat(){
+  return localSeat();
+}
+function seatWindLabel(seat){
+  return seat==='S'?'南':seat==='N'?'北':seat==='E'?'东':seat==='W'?'西':String(seat);
+}
+function netSeatFromJoined(msg){
+  const s=msg.seat;
+  if(s==='S'||s==='N'||s==='E'||s==='W') return s;
+  const i=Number(msg.seatIndex);
+  if(Number.isFinite(i)&&i>=0&&i<=3) return['S','N','E','W'][Math.floor(i)];
+  return 'S';
+}
+function cloneStateForNet(st){
+  if(!st) return st;
+  const fp=st.asidePlaced||st['flowersPlaced'];
+  const asideSafe=fp&&typeof fp==='object'?{
+    S:Array.isArray(fp.S)?fp.S.filter(id=>typeof id==='string'&&id).slice():[],
+    N:Array.isArray(fp.N)?fp.N.filter(id=>typeof id==='string'&&id).slice():[],
+    E:Array.isArray(fp.E)?fp.E.filter(id=>typeof id==='string'&&id).slice():[],
+    W:Array.isArray(fp.W)?fp.W.filter(id=>typeof id==='string'&&id).slice():[],
+  }:{S:[],N:[],E:[],W:[]};
+  const riv=Array.isArray(st.river)?st.river.map(e=>{
+    if(!e||typeof e!=='object') return{by:'S',tile:'',px:0,pz:0};
+    const by=['S','N','E','W'].includes(e.by)?e.by:'S';
+    const tile=typeof e.tile==='string'?e.tile:'';
+    let px=Number(e.px), pz=Number(e.pz);
+    if(!Number.isFinite(px)) px=0;
+    if(!Number.isFinite(pz)) pz=0;
+    const c=clampRiverXZ(px,pz);
+    return{by,tile,px:c.px,pz:c.pz};
+  }):[];
+  const base={...st};
+  delete base.drawCountSetting;
+  delete base.wallAwaitOpeningPick;
+  return{
+    ...base,
+    river:riv,
+    asidePlaced:asideSafe
+  };
+}
+
+/** 兼容旧存档/旧同步：meldPrep 曾为单数组 */
+function normalizeTableStateShape(st){
+  if(!st) return;
+  if(!st.cfg||typeof st.cfg!=='object') st.cfg={honors:true,flowers:true};
+  else{
+    st.cfg.honors=!!st.cfg.honors;
+    st.cfg.flowers=!!st.cfg.flowers;
+  }
+  if(!st.hands||typeof st.hands!=='object'){
+    st.hands={S:[],N:[],E:[],W:[]};
+  }else{
+    for(const k of['S','N','E','W']){
+      if(!Array.isArray(st.hands[k])) st.hands[k]=[];
+    }
+  }
+  if(!Array.isArray(st.river)) st.river=[];
+  else{
+    st.river=st.river.map(e=>{
+      if(!e||typeof e!=='object') return{by:'S',tile:'',px:0,pz:0};
+      const by=['S','N','E','W'].includes(e.by)?e.by:'S';
+      const tile=typeof e.tile==='string'?e.tile:'';
+      let px=Number(e.px), pz=Number(e.pz);
+      if(!Number.isFinite(px)) px=0;
+      if(!Number.isFinite(pz)) pz=0;
+      const c=clampRiverXZ(px,pz);
+      return{by,tile,px:c.px,pz:c.pz};
+    });
+  }
+  const leg=st['flowersPlaced'];
+  if(leg&&typeof leg==='object'){
+    if(!st.asidePlaced||typeof st.asidePlaced!=='object'){
+      st.asidePlaced={S:[],N:[],E:[],W:[]};
+      for(const k of['S','N','E','W']){
+        st.asidePlaced[k]=Array.isArray(leg[k])?leg[k].filter(id=>typeof id==='string'&&id):[];
+      }
+    }
+    delete st['flowersPlaced'];
+  }
+  if(!st.asidePlaced||typeof st.asidePlaced!=='object'){
+    st.asidePlaced={S:[],N:[],E:[],W:[]};
+  }else{
+    for(const k of['S','N','E','W']){
+      if(!Array.isArray(st.asidePlaced[k])) st.asidePlaced[k]=[];
+      else st.asidePlaced[k]=st.asidePlaced[k].filter(id=>typeof id==='string'&&id);
+    }
+  }
+  if(st.gamePhase!=='dice'&&st.gamePhase!=='play') st.gamePhase='play';
+  if('drawCountSetting' in st) delete st.drawCountSetting;
+  if('wallAwaitOpeningPick' in st) delete st.wallAwaitOpeningPick;
+  if(st.wallRingDirection!==1&&st.wallRingDirection!==-1) st.wallRingDirection=1;
+  if(!Number.isFinite(st.wallForwardCursorGlobal)){
+    const before=st.wallForwardCursorGlobal;
+    if(st.gamePhase==='play') st.wallForwardCursorGlobal=-1;
+    else st.wallForwardCursorGlobal=0;
+    mjWallDebugLog('normalizeTableStateShape: wallForwardCursorGlobal 非有限 → 修正',before,'→',st.wallForwardCursorGlobal,'gamePhase=',st.gamePhase);
+  }
+  if(st.lastWallInteractGlobal!=null&&!Number.isFinite(st.lastWallInteractGlobal)) st.lastWallInteractGlobal=null;
+  if(st.wallFirstBatchDone!==true&&st.wallFirstBatchDone!==false) st.wallFirstBatchDone=false;
+  if(!st.dealerSeat||!['S','N','E','W'].includes(st.dealerSeat)) st.dealerSeat='S';
+  if(typeof st.southHandFlat==='boolean'){
+    const f=st.southHandFlat, arr=st.southHandFlatFaceUp||[];
+    st.southHandFlat={S:!!f,N:!!f,E:!!f,W:!!f};
+    st.southHandFlatFaceUp={S:Array.isArray(arr)?arr.slice():[],N:[],E:[],W:[]};
+  }
+  if(Array.isArray(st.meldPrep)){
+    const a=st.meldPrep, f=st.meldPrepFaceUp||[];
+    st.meldPrep={
+      S:[a[0]??null,a[1]??null,a[2]??null],
+      N:[null,null,null],
+      E:[null,null,null],
+      W:[null,null,null]
+    };
+    st.meldPrepFaceUp={
+      S:[f[0]!==false,f[1]!==false,f[2]!==false],
+      N:[true,true,true],
+      E:[true,true,true],
+      W:[true,true,true]
+    };
+  }
+}
+
+/** 理牌预览：from 为手牌下标，insert 为松手后插入位置 0..n */
+let sortPreviewState=null;
+let sortRenderPending=false;
+/** @type {{type:'handTile',index:number,sx:number,sy:number,sortLifted:boolean,discardActive:boolean,insertIndex:number}|{type:'prepTile',slot:number,sx:number,sy:number,active:boolean}|{type:'asideTile',slot:number,sx:number,sy:number,active:boolean}|{type:'wall',side:'S',wallIndex:number,sx:number,sy:number,active:boolean}|{type:'riverTile',riverIndex:number,sx:number,sy:number,active:boolean}|{type:'meldTileTap',seat:'S'|'N'|'E'|'W',meldIdx:number,tileIdx:number,sx:number,sy:number,active:boolean}|{type:'handFlatTap',index:number,sx:number,sy:number,active:boolean}|{type:'tableGesture',sx:number,sy:number,t0:number,moved:boolean,longPressTimer:any,longPressFired:boolean}|null} */
+let dragState=null;
+let twoFingerCamActive=false;
+/** 仅两指水平间距，用于缩放（不用欧氏距离，避免上下滑时误缩放） */
+let twoFingerLastSpanX=0;
+let twoFingerLastMidY=0;
+const FLOWER_TABLE_Y=0.16;
+/** 桌面空白双击：胡牌放倒切换 */
+let lastEmptyTap={t:0,x:0,y:0};
+let lastWallPickWorld=null;
+function createEmptyTableState(cfg){
+  return{
+    cfg:{flowers:!!cfg.flowers,honors:!!cfg.honors},
+    walls:{S:[],N:[],E:[],W:[]},
+    hands:{S:[],N:[],E:[],W:[]},
+    river:[],
+    melds:{S:[],N:[],E:[],W:[]},
+    wallMaxCols:{S:1,N:1,E:1,W:1},
+    /** 各家准备区（本机用 localSeat 对应项） */
+    meldPrep:{S:[null,null,null],N:[null,null,null],E:[null,null,null],W:[null,null,null]},
+    meldPrepFaceUp:{
+      S:[true,true,true],N:[true,true,true],E:[true,true,true],W:[true,true,true]
+    },
+    asidePlaced:{S:[],N:[],E:[],W:[]},
+    southHandFlat:{S:false,N:false,E:false,W:false},
+    southHandFlatFaceUp:{S:[],N:[],E:[],W:[]},
+    /** dice：待掷骰；play：已开门摸牌 */
+    gamePhase:'dice',
+    dice:null,
+    dealerSeat:'S',
+    /** 起摸锚点全局下标；未点可为 -1；每批摸牌后更新 */
+    wallForwardCursorGlobal:0,
+    /** 最近一次点中的牌山全局下标 */
+    lastWallInteractGlobal:null,
+    wallRingDirection:1,
+    wallFirstBatchDone:false
+  };
+}
+
+/** 洗牌后的牌按顺时针四边分成四家牌山：南 → 西 → 北 → 东 */
+function splitWallIntoSides(remainder){
+  const n=remainder.length, q=Math.floor(n/4), r=n%4;
+  const sz=[q+(r>0?1:0),q+(r>1?1:0),q+(r>2?1:0),q];
+  let o=0;
+  return{
+    S:remainder.slice(o,o+=sz[0]),
+    W:remainder.slice(o,o+=sz[1]),
+    N:remainder.slice(o,o+=sz[2]),
+    E:remainder.slice(o,o+=sz[3])
+  };
+}
+
+/** 牌山线性存储顺序（与 splitWallIntoSides：南→西→北→东 一致） */
+const WALL_SIDE_ORDER=['S','W','N','E'];
+
+function totalWallSlots(st){
+  if(!st||!st.walls) return 0;
+  let n=0;
+  for(let i=0;i<WALL_SIDE_ORDER.length;i++) n+=st.walls[WALL_SIDE_ORDER[i]].length;
+  return n;
+}
+function globalIndexToWallSlot(st,g){
+  let g0=g|0;
+  for(let i=0;i<WALL_SIDE_ORDER.length;i++){
+    const side=WALL_SIDE_ORDER[i];
+    const L=st.walls[side].length;
+    if(g0<L) return{side,idx:g0};
+    g0-=L;
+  }
+  return null;
+}
+function wallSlotToGlobalIndex(st,side,idx){
+  let g=0;
+  for(let i=0;i<WALL_SIDE_ORDER.length;i++){
+    const s=WALL_SIDE_ORDER[i];
+    if(s===side) return g+(idx|0);
+    g+=st.walls[s].length;
+  }
+  return-1;
+}
+/** 每家牌山数组：偶数下标为墩下、奇数为墩上；摸牌每墩先上后下 → 每墩按 2s+1 再 2s 入环 */
+function wallSideDrawOrderGlobals(st,side){
+  const L=st.walls[side]?.length|0;
+  if(L<=0) return[];
+  const out=[];
+  const stackCount=Math.ceil(L/2);
+  for(let s=0;s<stackCount;s++){
+    const ixUp=2*s+1, ixDn=2*s;
+    if(ixUp<L){
+      const g=wallSlotToGlobalIndex(st,side,ixUp);
+      if(g>=0) out.push(g);
+    }
+    if(ixDn<L){
+      const g=wallSlotToGlobalIndex(st,side,ixDn);
+      if(g>=0) out.push(g);
+    }
+  }
+  return out;
+}
+function wallPoseForGlobalIndex(st,g){
+  const slot=globalIndexToWallSlot(st,g);
+  if(!slot) return null;
+  return wallTileWorldPoseFromSideIndex(slot.side,slot.idx,st);
+}
+/**
+ * 摸牌环序：按 3D 桌面上俯视顺时针衔接四面墙（南→东→北→西）。
+ * 存储仍是 splitWallIntoSides 的南→西→北→东；此处仅生成摸牌遍历用的全局下标排列。
+ */
+const WALL_RING_SIDES_3D=['S','E','N','W'];
+function wallDrawOrderGlobals(st){
+  const out=[];
+  let prevEnd=null;
+  for(let si=0;si<WALL_RING_SIDES_3D.length;si++){
+    const side=WALL_RING_SIDES_3D[si];
+    let gs=wallSideDrawOrderGlobals(st,side);
+    if(!gs.length) continue;
+    let pf=wallPoseForGlobalIndex(st,gs[0]);
+    let pl=wallPoseForGlobalIndex(st,gs[gs.length-1]);
+    if(pf&&pl){
+      if(!prevEnd){
+        if(side==='S'&&pf.x>pl.x) gs=gs.slice().reverse();
+        else if(side==='N'&&pf.x<pl.x) gs=gs.slice().reverse();
+        else if(side==='W'&&pf.z<pl.z) gs=gs.slice().reverse();
+      }else{
+        pf=wallPoseForGlobalIndex(st,gs[0]);
+        pl=wallPoseForGlobalIndex(st,gs[gs.length-1]);
+        if(pf&&pl){
+          const d0=(pf.x-prevEnd.x)**2+(pf.z-prevEnd.z)**2;
+          const d1=(pl.x-prevEnd.x)**2+(pl.z-prevEnd.z)**2;
+          if(d1<d0) gs=gs.slice().reverse();
+        }
+      }
+    }
+    for(let i=0;i<gs.length;i++) out.push(gs[i]);
+    const pe=wallPoseForGlobalIndex(st,gs[gs.length-1]);
+    if(pe) prevEnd=pe;
+  }
+  return out;
+}
+/**
+ * 首摸调试日志：控制台过滤 `[MJ-WALL]`。关闭：`window.__MJ_WALL_LOG=false`
+ * @param {...*} parts
+ */
+function mjWallDebugLog(...parts){
+  if(typeof window!=='undefined'&&window.__MJ_WALL_LOG===false) return;
+  console.log('[MJ-WALL]',...parts);
+}
+function wallCanDrawGlobal(st,g){
+  const slot=globalIndexToWallSlot(st,g);
+  if(!slot) return false;
+  return canTakeWallSlot(st.walls[slot.side],slot.idx);
+}
+function wallMoveToHand(st,g,seat){
+  const slot=globalIndexToWallSlot(st,g);
+  if(!slot) return null;
+  const arr=st.walls[slot.side];
+  const ix=slot.idx;
+  if(!canTakeWallSlot(arr,ix)) return null;
+  const t=arr[ix];
+  arr[ix]=null;
+  st.hands[seat].push(t);
+  return t;
+}
+/**
+ * 环上步进为逆时针时，同一墩会先遇到「下」再遇到「上」；摸牌仍须先上后下。
+ * 若候选 g 为下张且同墩上张仍在，则改为取上张。
+ */
+function wallUpperBeforeLowerInStack(st,g){
+  const slot=globalIndexToWallSlot(st,g);
+  if(!slot) return g;
+  const ix=slot.idx;
+  if((ix&1)===1) return g;
+  const arr=st.walls[slot.side];
+  const upIx=ix+1;
+  if(upIx<arr.length&&canTakeWallSlot(arr,upIx)){
+    const gu=wallSlotToGlobalIndex(st,slot.side,upIx);
+    if(gu>=0) return gu;
+  }
+  return g;
+}
+function wallAdvanceCiAfterTake(st,gRing,gTaken){
+  if(gRing===gTaken) return true;
+  const sR=globalIndexToWallSlot(st,gRing);
+  const sT=globalIndexToWallSlot(st,gTaken);
+  if(sR&&sT&&sR.side===sT.side&&(sR.idx&1)===0&&sT.idx===sR.idx+1) return false;
+  return true;
+}
+/** 牌山四角留白约一张牌宽；沿墙半宽不超过 wallOffset - WALL_CORNER_GAP，避免四面交叉重叠 */
+const WALL_CORNER_GAP=TW*1.1;
+function wallAlongInsetScale(maxNFixed){
+  const maxHalf=Math.max(0.12,wallOffset-WALL_CORNER_GAP);
+  const rawHalf=((maxNFixed-1)*TW)/2;
+  if(rawHalf<=maxHalf+1e-6) return 1;
+  return maxHalf/rawHalf;
+}
+/** count/maxNFixed 为「墩数」（上下叠一墩），along 为墩中心线 */
+function wallSlotCenters1DStable(count, maxNFixed){
+  if(count<=0) return[];
+  const shift=-((maxNFixed-1)*TW)/2;
+  const sc=wallAlongInsetScale(maxNFixed);
+  const out=[];
+  for(let i=0;i<count;i++) out.push({along:(shift+i*TW)*sc});
+  return out;
+}
+/**
+ * 牌山在南家基准 xz 下：四面均用 sx=along、sz=wallOffset，经 southFrameXZToWorldXZ(座位角) 落到世界坐标。
+ * 东墙不再单独 sx:-along：否则东墙 world z=along 会使数组 0 落在北侧，与南墙东端（南侧）错一相位，墩列与环序不齐。
+ * 统一公式后东墙为 (wallOffset,-along)，下标沿墙从南→北，与西墙对称、墩内上/下齐列。
+ */
+function wallSouthFrameAlongDepth(physicalSide,along){
+  const sz=wallOffset;
+  return{sx:along,sz};
+}
+/**
+ * 牌山第 wallIndex 张：偶数下标为墩下、奇数为墩上（先摸上后摸下）。
+ * 位姿与 buildWallMeshes、摸牌 ghost 同一公式。
+ */
+function wallTileWorldPoseFromSideIndex(side,wallIndex,st){
+  const arr=st.walls[side];
+  const L=arr.length;
+  if(L<=0||wallIndex<0||wallIndex>=L) return null;
+  const stackIdx=(wallIndex/2)|0;
+  const isUpper=(wallIndex&1)===1;
+  const stackCount=Math.max(1,Math.ceil(L/2));
+  const slots=wallSlotCenters1DStable(stackCount,stackCount);
+  const ws=slots[stackIdx];
+  if(!ws) return null;
+  const {along}=ws;
+  const yTable=0.08;
+  const stackDy=(TD+0.01)*0.92;
+  const y=yTable+(isUpper?stackDy:0);
+  const {sx,sz}=wallSouthFrameAlongDepth(side,along);
+  const w=southFrameXZToWorldXZ(sx,sz,side);
+  const rotY=worldYawFromSouthFrame(Math.PI,side);
+  return{x:w.x,y,z:w.z,rotY,side};
+}
+/**
+ * 首摸之后：在锚点牌位 pA 处，用「沿环前进 / 后退」两条切向（指向下一张、上一张牌中心）与 (点击−pA) 做点积，
+ * 哪边投影大即选哪向；比「点击到邻格中心距离」更稳，避免逆时针时好时坏、仅个别方位能摸满。
+ */
+function wallRingSetDirectionFromPick(st,pickW){
+  const ring=wallDrawOrderGlobals(st);
+  const T=ring.length;
+  if(T<2){ st.wallRingDirection=1; return; }
+  if(!pickW||!Number.isFinite(pickW.x)||!Number.isFinite(pickW.z)){
+    st.wallRingDirection=1;
+    return;
+  }
+  const anchor=st.wallForwardCursorGlobal;
+  if(!Number.isFinite(anchor)||anchor<0){ st.wallRingDirection=1; return; }
+  const i0=ring.indexOf(anchor);
+  if(i0<0){ st.wallRingDirection=1; return; }
+  const slotA=globalIndexToWallSlot(st,anchor);
+  if(!slotA){ st.wallRingDirection=1; return; }
+  const pA=wallTileWorldPoseFromSideIndex(slotA.side,slotA.idx,st);
+  if(!pA){ st.wallRingDirection=1; return; }
+  const iNext=(i0+1)%T;
+  const iPrev=(i0-1+T)%T;
+  const gF=ring[iNext], gB=ring[iPrev];
+  const slotF=globalIndexToWallSlot(st,gF);
+  const slotB=globalIndexToWallSlot(st,gB);
+  if(!slotF||!slotB){ st.wallRingDirection=1; return; }
+  const pF=wallTileWorldPoseFromSideIndex(slotF.side,slotF.idx,st);
+  const pB=wallTileWorldPoseFromSideIndex(slotB.side,slotB.idx,st);
+  if(!pF||!pB){
+    st.wallRingDirection=1;
+    return;
+  }
+  const uxF=pF.x-pA.x, uzF=pF.z-pA.z;
+  const uxB=pB.x-pA.x, uzB=pB.z-pA.z;
+  const lenF=Math.max(Math.hypot(uxF,uzF),1e-6);
+  const lenB=Math.max(Math.hypot(uxB,uzB),1e-6);
+  const ppx=pickW.x-pA.x, ppz=pickW.z-pA.z;
+  const dotF=(ppx*uxF+ppz*uzF)/lenF;
+  const dotB=(ppx*uxB+ppz*uzB)/lenB;
+  st.wallRingDirection=dotF>=dotB?1:-1;
+}
+function wallCloneForPeek(st){
+  return{
+    walls:{S:st.walls.S.slice(),N:st.walls.N.slice(),E:st.walls.E.slice(),W:st.walls.W.slice()},
+    hands:{S:st.hands.S.slice(),N:st.hands.N.slice(),E:st.hands.E.slice(),W:st.hands.W.slice()},
+    wallForwardCursorGlobal:st.wallForwardCursorGlobal,
+    wallRingDirection:st.wallRingDirection,
+    wallFirstBatchDone:st.wallFirstBatchDone
+  };
+}
+/**
+ * 张数 n 由调用方传入（通常为右上角设定）。环序即 wallDrawOrderGlobals：3D 桌面上顺时针对四面墙，墩内 1上1下…。
+ * 首摸前：必须从锚点那张开始（点哪摸哪）；首摸后：沿 wallRingDirection（±1）步进。
+ * 逆时针时环会先指到「下」再指到「上」，同墩内仍强制先上后下（见 wallUpperBeforeLowerInStack）。
+ */
+function drawForwardBatch(st,n,collectPoses){
+  const seat=localSeat();
+  const ring=wallDrawOrderGlobals(st);
+  const T=ring.length;
+  if(T===0){
+    st.wallForwardCursorGlobal=-1;
+    return collectPoses?{taken:0,poses:[]}:0;
+  }
+  const anchor=st.wallForwardCursorGlobal;
+  if(!Number.isFinite(anchor)||anchor<0) return collectPoses?{taken:0,poses:[]}:0;
+  const dir=st.wallFirstBatchDone?st.wallRingDirection:1;
+  const i0=ring.indexOf(anchor);
+  if(i0<0) return collectPoses?{taken:0,poses:[]}:0;
+  let ci=-1;
+  if(!st.wallFirstBatchDone){
+    if(wallCanDrawGlobal(st,ring[i0])) ci=i0;
+  }else{
+    for(let k=0;k<T;k++){
+      const idx=((i0+k*dir)%T+T)%T;
+      if(wallCanDrawGlobal(st,ring[idx])){ ci=idx; break; }
+    }
+  }
+  if(ci<0){
+    st.wallForwardCursorGlobal=Number.isFinite(st.wallForwardCursorGlobal)?st.wallForwardCursorGlobal:-1;
+    return collectPoses?{taken:0,poses:[]}:0;
+  }
+  const wasFirst=!st.wallFirstBatchDone;
+  let taken=0;
+  const poses=[];
+  let lastG=ring[ci];
+  const cap=T*Math.max(n,8)+T;
+  let emptySkips=0;
+  for(let step=0;step<cap&&taken<n;step++){
+    const gRing=ring[ci];
+    let g=wallUpperBeforeLowerInStack(st,gRing);
+    if(!wallCanDrawGlobal(st,g)){
+      emptySkips++;
+      if(emptySkips>T){
+        break;
+      }
+      ci=((ci+dir)%T+T)%T;
+      continue;
+    }
+    emptySkips=0;
+    const slot=globalIndexToWallSlot(st,g);
+    const pose=collectPoses&&slot?wallTileWorldPoseFromSideIndex(slot.side,slot.idx,st):null;
+    if(!wallMoveToHand(st,g,seat)) break;
+    if(collectPoses&&pose) poses.push(pose);
+    taken++;
+    lastG=g;
+    if(taken>=n) break;
+    if(wallAdvanceCiAfterTake(st,gRing,g)) ci=((ci+dir)%T+T)%T;
+  }
+  if(taken>0&&wasFirst) st.wallFirstBatchDone=true;
+  st.wallForwardCursorGlobal=lastG;
+  return collectPoses?{taken,poses}:taken;
+}
+function peekNextDrawableWallPoses(st,n){
+  const r=drawForwardBatch(wallCloneForPeek(st),n,true);
+  return r&&r.poses?r.poses:[];
+}
+function runWallDraw(){
+  const st=tableState;
+  if(!st) return false;
+  if(st.gamePhase==='play'&&(!Number.isFinite(st.wallForwardCursorGlobal)||st.wallForwardCursorGlobal<0)){
+    showToast('请先在牌山上点选要摸的一墩');
+    return false;
+  }
+  const n=Math.max(1,Math.min(8,getLocalDrawCount()));
+  const taken=drawForwardBatch(st,n,false);
+  if(taken<1) return false;
+  if(taken<n) showToast(`已摸 ${taken} 张（设定 ${n} 张）`);
+  fullRender();
+  flushNetBroadcast();
+  return true;
+}
+function notifyWallDrawFailure(){
+  const st=tableState;
+  if(!st){ showToast('未能摸牌'); return; }
+  if(st.gamePhase==='play'&&(!Number.isFinite(st.wallForwardCursorGlobal)||st.wallForwardCursorGlobal<0)){
+    showToast('请先在牌山上点选要摸的一墩');
+    return;
+  }
+  const ring=wallDrawOrderGlobals(st);
+  let any=false;
+  for(let i=0;i<ring.length;i++){
+    if(wallCanDrawGlobal(st,ring[i])){ any=true; break; }
+  }
+  if(!any) showToast('牌山已无可摸之牌');
+  else showToast('未能摸牌');
+}
+function trySequentialWallDraw(side,wallIndex){
+  const st=tableState;
+  if(!st||st.gamePhase!=='play') return;
+  syncWallForwardCursorToTile(st,side,wallIndex);
+  if(!runWallDraw()) notifyWallDrawFailure();
+}
+function tryDragWallDraw(wallSide,wallIndex){
+  const st=tableState;
+  if(!st||st.gamePhase!=='play') return false;
+  return runWallDraw();
+}
+
+function openDiceGate(){
+  const el=document.getElementById('diceGate');
+  if(el){
+    el.classList.add('open');
+    el.setAttribute('aria-hidden','false');
+  }
+}
+function closeDiceGate(){
+  const el=document.getElementById('diceGate');
+  if(el){
+    el.classList.remove('open');
+    el.setAttribute('aria-hidden','true');
+  }
+}
+/** 与 tableState.gamePhase 对齐：掷骰阶段必显示 #diceGate（.open）；aria-hidden 仅辅助读屏，真正显示由 CSS display 控制 */
+function syncDiceGateToPhase(){
+  const el=document.getElementById('diceGate');
+  if(!el) return;
+  if(!tableState||tableState.gamePhase!=='dice'){
+    el.classList.remove('open');
+    el.setAttribute('aria-hidden','true');
+    return;
+  }
+  el.classList.add('open');
+  el.setAttribute('aria-hidden','false');
+}
+function updateDrawCountUi(){
+  const btn=document.getElementById('drawCountBtn');
+  if(!btn) return;
+  const st=tableState;
+  const show=!!(st&&(st.gamePhase==='play'||st.gamePhase==='dice'));
+  btn.classList.toggle('visible',show);
+  if(!st) return;
+  const n=getLocalDrawCount();
+  btn.textContent=n===1?'摸1':'摸'+n;
+}
+/** 骰子：+x=1 / -x=6 / +y=2 / -y=5 / +z=3 / -z=4（对面对和为 7） */
+function drawDicePips(ctx,s,face){
+  const pad=s*0.12;
+  const r=s*0.08;
+  const dot=(cx,cy)=>{ ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); };
+  const inner=s-2*pad;
+  const cx=pad+0.5*inner, cy=pad+0.5*inner;
+  const L=pad+0.28*inner, R=pad+0.72*inner, M=cx;
+  ctx.fillStyle='#2a2218';
+  if(face===1){ dot(cx,cy); return; }
+  if(face===2){ dot(L,L); dot(R,R); return; }
+  if(face===3){ dot(L,L); dot(cx,cy); dot(R,R); return; }
+  if(face===4){ dot(L,L); dot(R,L); dot(L,R); dot(R,R); return; }
+  if(face===5){ dot(L,L); dot(R,L); dot(cx,cy); dot(L,R); dot(R,R); return; }
+  dot(L,L); dot(R,L); dot(L,M); dot(R,M); dot(L,R); dot(R,R);
+}
+function makeDiceFaceTexture(faceVal){
+  const s=128;
+  const c=document.createElement('canvas');
+  c.width=s; c.height=s;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#f5ead8';
+  ctx.fillRect(0,0,s,s);
+  ctx.strokeStyle='#c4b49a';
+  ctx.lineWidth=3;
+  ctx.strokeRect(2,2,s-4,s-4);
+  drawDicePips(ctx,s,faceVal);
+  const tex=new THREE.CanvasTexture(c);
+  if(tex.encoding!==undefined) tex.encoding=THREE.sRGBEncoding;
+  return tex;
+}
+function createDiceMesh(){
+  const g=new THREE.BoxGeometry(0.52,0.52,0.52);
+  const order=[1,6,2,5,3,4];
+  const mats=order.map(v=>new THREE.MeshStandardMaterial({
+    map:makeDiceFaceTexture(v), roughness:0.45, metalness:0.06,
+    emissive:0x221a10, emissiveIntensity:0.35
+  }));
+  const mesh=new THREE.Mesh(g,mats);
+  mesh.castShadow=true;
+  return mesh;
+}
+function quatForDiceUp(d){
+  const n=new THREE.Vector3();
+  if(d===1||d===6) n.set(d===1?1:-1,0,0);
+  else if(d===2||d===5) n.set(0,d===2?1:-1,0);
+  else n.set(0,0,d===3?1:-1);
+  const q=new THREE.Quaternion();
+  q.setFromUnitVectors(n,new THREE.Vector3(0,1,0));
+  return q;
+}
+/**
+ * 掷骰动画结束：进入 play。骰子点数 **仅** 写入 `st.dice` 供展示/同步。
+ */
+function finishOpeningDice(d1,d2){
+  const st=tableState;
+  if(!st) return;
+  st.dice=[d1,d2];
+  st.wallForwardCursorGlobal=-1;
+  st.wallRingDirection=1;
+  st.wallFirstBatchDone=false;
+  st.gamePhase='play';
+  diceWorldGroup.clear();
+  diceWorldGroup.visible=false;
+  diceAnimState=null;
+  closeDiceGate();
+  showToast(`骰子 ${d1}+${d2}=${d1+d2}（仅展示）。点牌山摸牌，张数见右上角`);
+  updateDrawCountUi();
+  fullRender();
+  flushNetBroadcast();
+}
+function startDiceRollAnimation(){
+  if(!tableState||tableState.gamePhase!=='dice'||diceAnimState) return;
+  diceWorldGroup.clear();
+  const a=createDiceMesh();
+  const b=createDiceMesh();
+  a.position.set(-0.55,3.85,6.2);
+  b.position.set(0.55,3.85,6.2);
+  const d1=1+Math.floor(Math.random()*6), d2=1+Math.floor(Math.random()*6);
+  const qa1=quatForDiceUp(d1), qb1=quatForDiceUp(d2);
+  const qa0=new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random()*6.28,Math.random()*6.28,Math.random()*6.28));
+  const qb0=new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random()*6.28,Math.random()*6.28,Math.random()*6.28));
+  a.quaternion.copy(qa0);
+  b.quaternion.copy(qb0);
+  diceWorldGroup.add(a,b);
+  diceWorldGroup.visible=true;
+  diceAnimState={t0:performance.now(),a,b,d1,d2,qa1,qb1,qa0,qb0};
+}
+
+function newGame(cfg){
+  const pile=shuffle(buildDeck(cfg));
+  const st=createEmptyTableState(cfg);
+  st.walls=splitWallIntoSides(pile);
+  st.wallMaxCols={
+    S:Math.max(1,Math.ceil(st.walls.S.length/2)),
+    N:Math.max(1,Math.ceil(st.walls.N.length/2)),
+    E:Math.max(1,Math.ceil(st.walls.E.length/2)),
+    W:Math.max(1,Math.ceil(st.walls.W.length/2))
+  };
+  const T=totalWallSlots(st);
+  st.gamePhase='dice';
+  st.dice=null;
+  st.dealerSeat=localSeat();
+  st.wallForwardCursorGlobal=0;
+  const prevSeat=mySeat;
+  tableState=st;
+  if(netWs&&netWs.readyState===1) mySeat=prevSeat;
+  else mySeat='S';
+  sortPreviewState=null;
+  resetCameraSeatBinding();
+  updateDrawCountUi();
+  openDiceGate();
+  fullRender();
+  if(netWs&&netWs.readyState===1) flushNetBroadcast();
+}
+
+function canTakeWallSlot(arr,wallIndex){
+  const L=arr.length;
+  if(L===0||wallIndex<0||wallIndex>=L) return false;
+  const t=arr[wallIndex];
+  return t!=null&&t!=='';
+}
+
+function syncWallForwardCursorToTile(st,side,wallIndex){
+  if(!st||!st.walls||typeof wallIndex!=='number') return;
+  const arr=st.walls[side];
+  if(!arr||wallIndex<0||wallIndex>=arr.length) return;
+  const g=wallSlotToGlobalIndex(st,side,wallIndex);
+  if(g>=0){
+    st.lastWallInteractGlobal=g;
+    if(st.gamePhase==='play'){
+      const pick=lastWallPickWorld;
+      if(!st.wallFirstBatchDone) st.wallForwardCursorGlobal=g;
+      else wallRingSetDirectionFromPick(st,pick);
+      mjWallDebugLog('(1) 点牌山 首摸完成=',st.wallFirstBatchDone,' 锚点=',st.wallForwardCursorGlobal,' 环向=',st.wallRingDirection,' 点中 g=',g,' side=',side,' idx=',wallIndex);
+    }else st.wallForwardCursorGlobal=g;
+  }
+}
+/** 拖牌入袋：先 sync 再摸本机 getLocalDrawCount() 张 */
+function drawFromWallAtIndex(wallPhysicalSide,wallIndex){
+  if(!tableState) return;
+  if(tableState.gamePhase==='play'){
+    syncWallForwardCursorToTile(tableState,wallPhysicalSide,wallIndex);
+  }
+  if(!tryDragWallDraw(wallPhysicalSide,wallIndex)) notifyWallDrawFailure();
+}
+/**
+ * 摸牌拖影：与牌山相同平放扣牌（makeTileFlat），位置用 peek 返回的实际牌山坐标相对质心摆放，整组随 dragGhostGroup 移动。
+ */
+function buildWallDragGhost(){
+  clearDragGhost();
+  const st=tableState;
+  if(!st||st.gamePhase!=='play') return false;
+  const nWant=Math.max(1,Math.min(8,getLocalDrawCount()));
+  const raw=peekNextDrawableWallPoses(st,nWant);
+  if(raw.length===0) return false;
+  let cx=0,cy=0,cz=0;
+  for(let i=0;i<raw.length;i++){
+    cx+=raw[i].x; cy+=raw[i].y; cz+=raw[i].z;
+  }
+  cx/=raw.length; cy/=raw.length; cz/=raw.length;
+  dragGhostGroup.position.set(0,0,0);
+  dragGhostGroup.userData.wallPlaneY=cy;
+  for(let i=0;i<raw.length;i++){
+    const p=raw[i];
+    const rx=p.x-cx, ry=p.y-cy, rz=p.z-cz;
+    const t=makeTileFlat('back');
+    t.rotation.y=p.rotY;
+    t.position.set(rx,ry,rz);
+    t.traverse(o=>{ if(o.isMesh) o.renderOrder=99; });
+    dragGhostGroup.add(t);
+  }
+  return true;
+}
+
+function clampRiverXZ(px,pz){
+  return{
+    px:Math.max(-RIVER_INNER,Math.min(RIVER_INNER,px)),
+    pz:Math.max(-RIVER_INNER,Math.min(RIVER_INNER,pz))
+  };
+}
+/** 序号小的（先打出）在重叠时让位给序号大的；多轮迭代 */
+function relaxRiverFull(river){
+  const minD=RIVER_MIN_CENTER_DIST;
+  const clamp=t=>{
+    t.px=Math.max(-RIVER_INNER,Math.min(RIVER_INNER,t.px));
+    t.pz=Math.max(-RIVER_INNER,Math.min(RIVER_INNER,t.pz));
+  };
+  for(let iter=0;iter<72;iter++){
+    for(let i=0;i<river.length;i++){
+      for(let j=i+1;j<river.length;j++){
+        const a=river[i], b=river[j];
+        const dx=b.px-a.px, dz=b.pz-a.pz;
+        const d=Math.hypot(dx,dz);
+        if(d<minD && d>1e-9){
+          const push=minD-d+0.003;
+          const nx=dx/d, nz=dz/d;
+          a.px-=nx*push;
+          a.pz-=nz*push;
+          clamp(a);
+        }
+      }
+    }
+  }
+}
+/** px,pz 与 renderRiverInCenter 一致：playGroup/桌系局部 XZ */
+function discardFromHandAtRiver(handIndex, tableLocalX, tableLocalZ){
+  const side=localSeat();
+  if(!tableState||handIndex<0||handIndex>=tableState.hands[side].length) return;
+  const {px,pz}=clampRiverXZ(tableLocalX,tableLocalZ);
+  const t=tableState.hands[side].splice(handIndex,1)[0];
+  tableState.river.push({by:side,tile:t,px,pz});
+  relaxRiverFull(tableState.river);
+  fullRender();
+  flushNetBroadcast();
+}
+
+/** 从弃牌河拾回主牌（拖到自家立牌区松手） */
+function returnRiverTileToHand(riverIndex, worldX, worldZ){
+  const st=tableState;
+  if(!st||riverIndex<0||riverIndex>=st.river.length) return false;
+  const rv=st.river[riverIndex];
+  if(!rv) return false;
+  const t=rv.tile;
+  st.river.splice(riverIndex,1);
+  relaxRiverFull(st.river);
+  const ins=computeHandInsertIndex(worldX,worldZ);
+  st.hands[localSeat()].splice(ins,0,t);
+  fullRender();
+  flushNetBroadcast();
+  return true;
+}
+
+/** 手牌顺序：从 from 移到 insert（0..n，表示插在该下标前） */
+function reorderLocalHand(fromIdx,insertIdx){
+  const h=tableState.hands[localSeat()];
+  if(fromIdx<0||fromIdx>=h.length) return;
+  const n=h.length;
+  const raw=Number(insertIdx);
+  let ins=Number.isFinite(raw)?Math.max(0,Math.min(n,Math.floor(raw))):0;
+  const [t]=h.splice(fromIdx,1);
+  if(fromIdx<ins) ins--;
+  h.splice(ins,0,t);
+}
+
+/**
+ * 根据世界坐标计算本家手牌插入下标 0..n（先 worldXZToTableLocalXZ，与 getLocalHandLayout 同坐标系）
+ */
+function computeHandInsertIndex(worldX,worldZ){
+  if(!tableState) return 0;
+  const {x:lx,z:lz}=worldXZToTableLocalXZ(worldX,worldZ);
+  const v=viewerSeat();
+  const {x:sx}=worldXZToSouthFrameXZ(lx,lz,v);
+  const L=getSouthFrameHandLayout(v);
+  const n=tableState.hands[v].length;
+  const gS=handGap(n);
+  const along=sx;
+  const start=L.startAlong;
+  for(let k=0;k<n;k++){
+    const c=start+k*gS;
+    if(along<c) return k;
+  }
+  return n;
+}
+
+function scheduleSortPreviewRender(){
+  if(sortRenderPending) return;
+  sortRenderPending=true;
+  requestAnimationFrame(()=>{
+    sortRenderPending=false;
+    if(sortPreviewState) fullRender();
+  });
+}
+
+/**
+ * 准备区2张 + 河牌1张 => 三张组（chi，无牌型校验）
+ */
+function tryChiFromPrepAndRiver(riverIndex){
+  const st=tableState;
+  if(!st) return false;
+  const seat=localSeat();
+  const mp=st.meldPrep[seat];
+  const p0=mp[0], p1=mp[1], p2=mp[2];
+  if(riverIndex<0||riverIndex>=st.river.length) return false;
+  const rv=st.river[riverIndex];
+  if(!rv) return false;
+  const c=rv.tile;
+  if(p0!=null&&p1!=null&&p2==null){
+    st.river.splice(riverIndex,1);
+    relaxRiverFull(st.river);
+    mp[0]=mp[1]=mp[2]=null;
+    st.meldPrepFaceUp[seat]=[true,true,true];
+    st.melds[seat].push({type:'chi',tiles:[p0,p1,c],faceUp:[true,true,true],isMing:true});
+    fullRender();
+    flushNetBroadcast();
+    return true;
+  }
+  return false;
+}
+
+/** 准备区已满三张 + 河牌拖入准备区 => 第四张叠杠（与前三张合并） */
+function mergeKangFromPrepAndRiver(riverIndex){
+  const st=tableState;
+  if(!st) return false;
+  const seat=localSeat();
+  const mp=st.meldPrep[seat];
+  const p0=mp[0], p1=mp[1], p2=mp[2];
+  if(!(p0!=null&&p1!=null&&p2!=null)) return false;
+  if(riverIndex<0||riverIndex>=st.river.length) return false;
+  const rv=st.river[riverIndex];
+  if(!rv) return false;
+  const c=rv.tile;
+  st.river.splice(riverIndex,1);
+  relaxRiverFull(st.river);
+  mp[0]=mp[1]=mp[2]=null;
+  st.meldPrepFaceUp[seat]=[true,true,true];
+  st.melds[seat].push({type:'kang',tiles:[p0,p1,p2,c],faceUp:[true,true,true,true],isMing:true});
+  fullRender();
+  flushNetBroadcast();
+  return true;
+}
+
+/** 准备区已满三张 + 手牌拖入准备区 => 第四张叠杠 */
+function mergeKangFromPrepAndHand(handIndex){
+  const st=tableState;
+  if(!st) return false;
+  const seat=localSeat();
+  const mp=st.meldPrep[seat];
+  const p0=mp[0], p1=mp[1], p2=mp[2];
+  if(!(p0!=null&&p1!=null&&p2!=null)) return false;
+  if(handIndex<0||handIndex>=st.hands[seat].length) return false;
+  const th=st.hands[seat][handIndex];
+  st.hands[seat].splice(handIndex,1);
+  mp[0]=mp[1]=mp[2]=null;
+  st.meldPrepFaceUp[seat]=[true,true,true];
+  st.melds[seat].push({type:'kang',tiles:[p0,p1,p2,th],faceUp:[true,true,true,false],isMing:false});
+  fullRender();
+  flushNetBroadcast();
+  return true;
+}
+
+function placeAsideFromHand(handIndex){
+  const st=tableState;
+  if(!st) return false;
+  const seat=localSeat();
+  const h=st.hands[seat];
+  if(handIndex<0||handIndex>=h.length) return false;
+  if((st.asidePlaced[seat]||[]).length>=FLOWER_SLOTS_MAX){
+    showToast('旁置区已满（最多'+FLOWER_SLOTS_MAX+'张）');
+    return false;
+  }
+  const id=h[handIndex];
+  if(!id) return false;
+  if(typeof id!=='string') return false;
+  h.splice(handIndex,1);
+  st.asidePlaced[seat].push(id);
+  return true;
+}
+
+function returnAsideToHand(slotIndex){
+  const st=tableState;
+  if(!st) return false;
+  const seat=localSeat();
+  const row=st.asidePlaced[seat];
+  if(slotIndex<0||slotIndex>=row.length) return false;
+  const t=row.splice(slotIndex,1)[0];
+  st.hands[seat].push(t);
+  return true;
+}
+
+/** 四方物理座位（状态键、模型边一致） */
+const PHYSICAL_SEATS=['S','N','E','W'];
+
+/**
+ * 南家基准布局绕 Y 转到各座位世界坐标：北 180°，东 90°，西 270°（-90°）。
+ * 输入 (x,z) 为与南家手牌同一套桌系 xz；输出为 playGroup/桌系内世界 xz。
+ */
+const SEAT_TABLE_YAW={S:0,N:Math.PI,E:Math.PI/2,W:-Math.PI/2};
+function seatTableYaw(seat){
+  return SEAT_TABLE_YAW[seat]??0;
+}
+function southFrameXZToWorldXZ(x,z,seat){
+  const th=seatTableYaw(seat);
+  const c=Math.cos(th), s=Math.sin(th);
+  return{x:c*x+s*z,z:-s*x+c*z};
+}
+function worldXZToSouthFrameXZ(wx,wz,seat){
+  const th=-seatTableYaw(seat);
+  const c=Math.cos(th), s=Math.sin(th);
+  return{x:c*wx+s*wz,z:-s*wx+c*wz};
+}
+/** 南家基准下的牌面朝向（立牌/平铺）绕 Y 加上座位角，得到世界 rotY */
+function worldYawFromSouthFrame(southYaw,seat){
+  let y=southYaw+seatTableYaw(seat);
+  y%=2*Math.PI;
+  if(y<0) y+=2*Math.PI;
+  return y;
+}
+
+/**
+ * 任意座位的牌张几何均按南家同一公式算在「南家基准」坐标，再经 southFrameXZToWorldXZ 摆放。
+ */
+function getSouthFrameHandLayout(seat){
+  const hands=tableState.hands[seat];
+  const nHand=hands.length;
+  const g=handGap(nHand);
+  const totalSpan=nHand>0?(nHand-1)*g+TW:0;
+  const startAlong=nHand>0?-totalSpan/2+TW/2:0;
+  const lastAlong=nHand>0?startAlong+(nHand-1)*g:0;
+  const melds=tableState.melds[seat];
+  const closeM=melds.length?melds[melds.length-1]:null;
+  const anchorAlong=meldAnchorFromLastHandCenter(lastAlong,closeM);
+  const fixedZ=SOUTH_HAND_FIXED_Z;
+  return{
+    mode:'xz',
+    rotHand:0,
+    meldRotY:0,
+    gS:g,
+    nS:nHand,
+    startAlong,
+    lastAlong,
+    anchorAlong,
+    fixedZ,
+    fixedX:0,
+    meldAnchorX:anchorAlong,
+    meldAnchorZ:fixedZ,
+  };
+}
+/** 本家交互用：南家基准布局 + 当前 viewer 座位数据 */
+function getLocalHandLayout(){
+  return getSouthFrameHandLayout(viewerSeat());
+}
+
+let __lastCameraSeat=null;
+function syncCameraToLocalSeatIfNeeded(){
+  const v=localSeat();
+  if(__lastCameraSeat===v) return;
+  __lastCameraSeat=v;
+  const p=SEAT_CAMERA_WORLD[v]||SEAT_CAMERA_WORLD.S;
+  camera.position.set(p[0],p[1],p[2]);
+  lookAtPt.set(0,lookAtY,0);
+  camera.lookAt(lookAtPt);
+}
+function resetCameraSeatBinding(){
+  __lastCameraSeat=null;
+}
+
+function isInsideMeldPrepZone(x,z){
+  if(!tableState) return false;
+  const {x:lx,z:lz}=worldXZToTableLocalXZ(x,z);
+  const v=viewerSeat();
+  const {x:sx,z:sz}=worldXZToSouthFrameXZ(lx,lz,v);
+  const L=getSouthFrameHandLayout(v);
+  const pad=0.42;
+  const x0=L.lastAlong+TW*0.5;
+  const x1=x0+PREP_BAND_WIDTH;
+  return sz>L.fixedZ-pad&&sz<L.fixedZ+0.9&&sx>=x0&&sx<=x1;
+}
+
+/**
+ * 花牌带命中：南家基准下 sz/sx 判定。桌系坐标用两种投影 **或** 其一成立即可（射线高度与 y=0 投影在部分机位下差一截，单一路径会全灭）。
+ */
+function isInsideLocalFlowerZone(x,z,worldY){
+  if(!tableState) return false;
+  const hit=(lx,lz)=>{
+    const v=viewerSeat();
+    const {x:sx,z:sz}=worldXZToSouthFrameXZ(lx,lz,v);
+    const L=getSouthFrameHandLayout(v);
+    const nH=tableState.hands[v].length;
+    const gS=handGap(Math.max(1,nH));
+    const totalWS=nH>0?(nH-1)*gS+TW:0;
+    const prepX0=L.lastAlong+TW*0.5;
+    const prepX1=prepX0+PREP_BAND_WIDTH;
+    if(sx>=prepX0&&sx<=prepX1) return false;
+    const zFlower=FLOWER_STRIP_Z_SOUTH;
+    const zHalf=0.78;
+    const zMax=L.fixedZ-0.42;
+    const zMin=zFlower-zHalf;
+    const nfp=(tableState.asidePlaced[v]||[]).length;
+    const flowerStripW=Math.max(8*FLOWER_GAP,(Math.max(0,nfp-1))*FLOWER_GAP+TW);
+    const xLeft=L.startAlong-TW;
+    const xRight=L.startAlong+Math.max(flowerStripW,totalWS+TW)+0.85;
+    return sz>=zMin&&sz<=zMax&&sx>=xLeft&&sx<=xRight;
+  };
+  if(Number.isFinite(worldY)){
+    const t=worldPointToTableLocalXZ(x,worldY,z);
+    if(hit(t.x,t.z)) return true;
+  }
+  const t0=worldXZToTableLocalXZ(x,z);
+  return hit(t0.x,t0.z);
+}
+
+function isInsideMeldCompleteZone(x,z){
+  if(!tableState) return false;
+  const {x:lx,z:lz}=worldXZToTableLocalXZ(x,z);
+  const v=viewerSeat();
+  const {x:sx,z:sz}=worldXZToSouthFrameXZ(lx,lz,v);
+  const L=getSouthFrameHandLayout(v);
+  const ms=tableState.melds[v];
+  let span=STEP*4;
+  for(let i=0;i<ms.length;i++) span+=meldBlockWidth(ms[i])+MELD_GAP_BETWEEN_GROUPS;
+  const x0=L.anchorAlong-0.75;
+  const x1=L.anchorAlong+span+0.6;
+  return sz>L.fixedZ-0.48&&sz<L.fixedZ+0.95&&sx>=x0&&sx<=x1;
+}
+
+function placeTileInMeldPrep(handIndex){
+  const st=tableState;
+  const seat=localSeat();
+  const h=st.hands[seat];
+  const mp=st.meldPrep[seat];
+  const mf=st.meldPrepFaceUp[seat];
+  if(handIndex<0||handIndex>=h.length) return false;
+  if(mp[0]!=null&&mp[1]!=null&&mp[2]!=null)
+    return mergeKangFromPrepAndHand(handIndex);
+  const t=h.splice(handIndex,1)[0];
+  let slot=-1;
+  if(mp[0]==null) slot=0;
+  else if(mp[1]==null) slot=1;
+  else if(mp[2]==null) slot=2;
+  else{
+    slot=2;
+    const old=mp[2];
+    if(old!=null) h.push(old);
+  }
+  mp[slot]=t;
+  mf[slot]=true;
+  return true;
+}
+
+function returnPrepSlotToHand(slot){
+  const st=tableState;
+  if(!st||slot<0||slot>2) return false;
+  const seat=localSeat();
+  const mp=st.meldPrep[seat];
+  const t=mp[slot];
+  if(t==null) return false;
+  mp[slot]=null;
+  st.hands[seat].push(t);
+  return true;
+}
+
+function renderMeldPrepSlots(){
+  if(!tableState) return;
+  const st=tableState;
+  const viewer=viewerSeat();
+  const mp=st.meldPrep[viewer];
+  const mf=st.meldPrepFaceUp[viewer];
+  const L=getSouthFrameHandLayout(viewer);
+  const y0=0.09;
+  const baseAlong=L.lastAlong+TW*0.55+0.12;
+  const rotW=worldYawFromSouthFrame(0,viewer);
+  for(let i=0;i<3;i++){
+    const id=mp[i];
+    if(!id) continue;
+    const faceUp=mf[i]!==false;
+    let gg;
+    if(faceUp){
+      gg=makeFlatTileWithGlyph(id,rotW);
+    }else{
+      gg=new THREE.Group();
+      gg.add(makeTileFlat('back'));
+      gg.rotation.y=rotW;
+    }
+    gg.userData={kind:'meldPrep',slot:i,seat:viewer};
+    const sx=baseAlong+i*STEP, sz=L.fixedZ;
+    const w=southFrameXZToWorldXZ(sx,sz,viewer);
+    gg.position.set(w.x,y0,w.z);
+    gg.traverse(o=>{ if(o.isMesh) o.renderOrder=12; });
+    playContent.add(gg);
+  }
+}
+
+// 立牌（手牌）→ playGroup
+function standTile(x,y,z,rotY,mode='face'){
+  let t;
+  if(mode==='back'){
+    t=makeTileStand('back',false);
+  } else t=makeTileStand(mode);
+  t.rotation.y=rotY;
+  t.position.set(x,y,z);
+  playContent.add(t);
+}
+
+/** 旁置条：与主牌左缘 startAlong 对齐；沿 +along 展开；z 为牌山与主牌之间（FLOWER_STRIP_Z_SOUTH） */
+function renderFlowersPlacedOnTable(cfg){
+  if(!tableState) return;
+  const addRow=(rotY,list,posFn,onTile)=>{
+    list.slice(0,FLOWER_SLOTS_MAX).forEach((tid,i)=>{
+      const gg=makeFlatTileWithGlyph(tid,rotY);
+      posFn(gg,i);
+      if(onTile) onTile(gg,i);
+      gg.traverse(o=>{ if(o.isMesh) o.renderOrder=4; });
+      playContent.add(gg);
+    });
+  };
+  const viewer=viewerSeat();
+  PHYSICAL_SEATS.forEach(seat=>{
+    const list=tableState.asidePlaced[seat]||[];
+    const L=getSouthFrameHandLayout(seat);
+    const flowerStart=L.startAlong;
+    const rotW=worldYawFromSouthFrame(0,seat);
+    const onTile=seat===viewer?((gg,i)=>{ gg.userData={kind:'asidePlaced',seat,slot:i}; }):undefined;
+    addRow(rotW,list,(gg,i)=>{
+      const d=flowerStart+i*FLOWER_GAP;
+      const w=southFrameXZToWorldXZ(d,FLOWER_STRIP_Z_SOUTH,seat);
+      gg.position.set(w.x,0.16,w.z);
+    },onTile);
+  });
+}
+
+function buildWallMeshes(walls,wallMaxCols){
+  const stLike={walls};
+  PHYSICAL_SEATS.forEach(side=>{
+    const arr=walls[side];
+    const L=arr.length;
+    /** 位姿与 wallTileWorldPoseFromSideIndex 一致（两叠一墩） */
+    for(let k=0;k<L;k++){
+      const id=arr[k];
+      if(id==null||id==='') continue;
+      const pose=wallTileWorldPoseFromSideIndex(side,k,stLike);
+      if(!pose) continue;
+      const t=makeTileFlat('back');
+      t.userData={kind:'wall',side,wallIndex:k};
+      t.rotation.y=pose.rotY;
+      t.position.set(pose.x,pose.y,pose.z);
+      playContent.add(t);
+    }
+  });
+}
+
+function ensureLocalHandFlatFaceUpArray(st){
+  const seat=localSeat();
+  const n=st.hands[seat].length;
+  const row=st.southHandFlatFaceUp[seat];
+  if(!row||row.length!==n) st.southHandFlatFaceUp[seat]=Array(n).fill(true);
+}
+function ensureSeatHandFlatFaceUpLength(st,seat){
+  const n=st.hands[seat]?.length|0;
+  const row=st.southHandFlatFaceUp[seat];
+  if(!row||row.length!==n) st.southHandFlatFaceUp[seat]=Array(Math.max(0,n)).fill(true);
+}
+
+function toggleLocalHandFlat(){
+  if(!tableState) return;
+  const st=tableState;
+  const seat=localSeat();
+  st.southHandFlat[seat]=!st.southHandFlat[seat];
+  if(st.southHandFlat[seat]) ensureLocalHandFlatFaceUpArray(st);
+  else st.southHandFlatFaceUp[seat]=[];
+  sortPreviewState=null;
+  fullRender();
+  flushNetBroadcast();
+}
+
+/** 左→右滑：整排放倒（不校验规则） */
+function layDownLocalHandFlat(){
+  if(!tableState) return;
+  const st=tableState;
+  const seat=localSeat();
+  if(!st.southHandFlat[seat]){
+    st.southHandFlat[seat]=true;
+    ensureLocalHandFlatFaceUpArray(st);
+  }
+  sortPreviewState=null;
+  fullRender();
+  flushNetBroadcast();
+}
+
+function toggleLocalHandFlatTileFace(index){
+  const st=tableState;
+  const seat=localSeat();
+  if(!st||!st.southHandFlat[seat]||index<0||index>=st.hands[seat].length) return;
+  ensureLocalHandFlatFaceUpArray(st);
+  st.southHandFlatFaceUp[seat][index]=!st.southHandFlatFaceUp[seat][index];
+  fullRender();
+  flushNetBroadcast();
+}
+
+function addLocalHandTileMesh(tileId,index,x,Z,rotY){
+  const st=tableState;
+  const viewer=viewerSeat();
+  if(st&&st.southHandFlat[viewer]){
+    ensureLocalHandFlatFaceUpArray(st);
+    const faceUp=st.southHandFlatFaceUp[viewer][index]!==false;
+    const yLift=HAND_DROP_Y;
+    let gg;
+    if(faceUp){
+      gg=makeFlatTileWithGlyph(tileId,rotY);
+    }else{
+      gg=new THREE.Group();
+      gg.add(makeTileFlat('back'));
+      gg.rotation.y=rotY;
+    }
+    gg.userData={kind:'handFlat',seat:viewer,index};
+    gg.position.set(x,yLift,Z);
+    gg.traverse(o=>{ if(o.isMesh) o.renderOrder=11; });
+    playContent.add(gg);
+    return;
+  }
+  const yLift=SY;
+  const g=new THREE.Group();
+  g.userData={kind:'hand',seat:viewer,index};
+  const body=makeTileStand('face');
+  body.position.set(0,0,0);
+  g.add(body);
+  g.add(makeTileGlyphPlaneStand(tileId));
+  g.rotation.y=rotY;
+  g.position.set(x,yLift,Z);
+  g.traverse(o=>{ if(o.isMesh) o.renderOrder=11; });
+  playContent.add(g);
+}
+
+/** 立背牌一行，居中；张数可多于 16 */
+function renderConcealedRow(count,rotY,axis,fixed){
+  if(count<=0) return;
+  const gap=handGap(count);
+  const total=(count-1)*gap;
+  const start=-total/2;
+  for(let i=0;i<count;i++){
+    const u=start+i*gap;
+    if(axis==='x') standTile(u,SY,fixed,rotY,'back');
+    else standTile(fixed,SY,u,rotY,'back');
+  }
+}
+
+function makeFlatTileWithGlyph(tileId,rotY){
+  const m=makeTileFlat('face');
+  const gl=makeTileGlyphPlaneFlat(tileId);
+  const gg=new THREE.Group();
+  gg.add(m);
+  gg.add(gl);
+  gg.rotation.y=rotY;
+  return gg;
+}
+
+/**
+ * 弃牌河：每张牌用记录的 (px,pz) 落在桌面中央；后打的 renderOrder 更高盖在上面。
+ */
+function renderRiverInCenter(river){
+  const rot={S:0,N:Math.PI,E:Math.PI/2,W:-Math.PI/2};
+  const yRiver=0.11;
+  river.forEach((e,idx)=>{
+    const px=typeof e.px==='number'?e.px:0;
+    const pz=typeof e.pz==='number'?e.pz:0;
+    const gg=makeFlatTileWithGlyph(e.tile,rot[e.by]);
+    gg.userData={kind:'river',riverIndex:idx};
+    gg.position.set(px,yRiver,pz);
+    gg.traverse(o=>{ if(o.isMesh) o.renderOrder=10+idx; });
+    playContent.add(gg);
+  });
+}
+
+// 吃碰杠：下2并排、上叠1、杠再斜（需在 placeMeldToGroup 之前声明以便阅读）
+function meldHandTangent(rotY){
+  let r=rotY%(2*Math.PI);
+  if(r<0) r+=2*Math.PI;
+  if(r<1e-5||r>2*Math.PI-1e-5) return {hx:1,hz:0};
+  if(Math.abs(r-Math.PI)<1e-5) return {hx:-1,hz:0};
+  if(Math.abs(r-Math.PI/2)<1e-5) return {hx:0,hz:1};
+  if(Math.abs(r-3*Math.PI/2)<1e-5) return {hx:0,hz:-1};
+  return {hx:1,hz:0};
+}
+
+function meldBlockWidth(m){
+  if(m&&m.type==='chi'&&m.tiles&&m.tiles.length>=3) return STEP*3+0.16;
+  if(m&&m.type==='pong'&&m.tiles&&m.tiles.length>=3) return STEP*3+0.16;
+  if(m&&m.type==='kang'&&m.tiles&&m.tiles.length>=4) return STEP*3+0.34;
+  return STEP*2+0.16;
+}
+/**
+ * 最贴手牌的一组副露（melds[length-1]）中心坐标：沿「手牌张开的方向」。
+ * lastCenter 为最后一张立牌中心；吃/碰为中间张中心，杠为四张中心。
+ */
+function meldAnchorFromLastHandCenter(lastCenter,firstMeld){
+  const base=lastCenter+TW/2+PREP_BAND_WIDTH+MELD_GAP_FROM_HAND;
+  if(!firstMeld||firstMeld.type==='chi'||firstMeld.type==='pong'){
+    return base+STEP;
+  }
+  if(firstMeld.type==='kang'){
+    return base+1.5*STEP;
+  }
+  return base+STEP;
+}
+
+function meldTileFaceUp(meld,idx){
+  if(!meld||!meld.tiles) return true;
+  if(!meld.faceUp||meld.faceUp.length<=idx) return true;
+  return meld.faceUp[idx]!==false;
+}
+
+function placeFlatMeldGlyph(ox,oz,rotY,tid,along,yLift){
+  const {hx,hz}=meldHandTangent(rotY);
+  const gg=makeFlatTileWithGlyph(tid,rotY);
+  gg.position.set(ox+along*hx,yLift,oz+along*hz);
+  gg.traverse(o=>{ if(o.isMesh) o.renderOrder=8; });
+  playContent.add(gg);
+}
+
+/** 副露平放一张：可牌面朝上或扣着；userData 供点击翻面 */
+function addFlatMeldTile(ox,oz,rotY,tileId,along,yLift,faceUp,ud){
+  const {hx,hz}=meldHandTangent(rotY);
+  const px=ox+along*hx, pz=oz+along*hz;
+  let gg;
+  if(faceUp!==false){
+    gg=makeFlatTileWithGlyph(tileId,rotY);
+    gg.position.set(px,yLift,pz);
+  }else{
+    gg=new THREE.Group();
+    const bk=makeTileFlat('back');
+    gg.add(bk);
+    gg.rotation.y=rotY;
+    gg.position.set(px,yLift,pz);
+  }
+  Object.assign(gg.userData,ud);
+  gg.traverse(o=>{ if(o.isMesh) o.renderOrder=8; });
+  playContent.add(gg);
+}
+
+function addKangFourthTile(ox,oz,rotY,tileId,y0,faceUp,ud){
+  const {hx,hz}=meldHandTangent(rotY);
+  const ax=ox, az=oz;
+  const yTop=y0+TD*0.82+0.028;
+  const tilt=-0.42;
+  const frontOff=0.06;
+  let gg;
+  if(faceUp!==false){
+    gg=makeFlatTileWithGlyph(tileId,rotY);
+    gg.rotation.order='YXZ';
+    gg.rotation.x=tilt;
+    gg.position.set(ax,yTop,az+frontOff);
+  }else{
+    gg=new THREE.Group();
+    const bk=makeTileFlat('back');
+    gg.add(bk);
+    gg.rotation.order='YXZ';
+    gg.rotation.y=rotY;
+    gg.rotation.x=tilt;
+    gg.position.set(ax,yTop,az+frontOff);
+  }
+  Object.assign(gg.userData,ud);
+  gg.traverse(o=>{ if(o.isMesh) o.renderOrder=9; });
+  playContent.add(gg);
+}
+
+function toggleMeldPrepFace(slot){
+  const st=tableState;
+  if(!st||slot<0||slot>2) return;
+  const seat=localSeat();
+  const mp=st.meldPrep[seat];
+  const mf=st.meldPrepFaceUp[seat];
+  if(mp[slot]==null) return;
+  mf[slot]=!mf[slot];
+  fullRender();
+  flushNetBroadcast();
+}
+
+function toggleMeldTileFace(seat,meldIdx,tileIdx){
+  const st=tableState;
+  if(!st) return;
+  const row=st.melds[seat];
+  if(!row||meldIdx<0||meldIdx>=row.length) return;
+  const m=row[meldIdx];
+  if(!m||!m.tiles) return;
+  const n=m.tiles.length;
+  if(tileIdx<0||tileIdx>=n) return;
+  if(!m.faceUp) m.faceUp=Array(n).fill(true);
+  m.faceUp[tileIdx]=!m.faceUp[tileIdx];
+  fullRender();
+  flushNetBroadcast();
+}
+
+function placeMeldToGroup(ox,oz,rotY,meld,seat,meldIndexInSeat){
+  const type=meld.type;
+  const tiles=meld.tiles||[];
+  const y0=0.09;
+  const udBase={kind:'meldTile',seat,meldIdx:meldIndexInSeat};
+  if(type==='chi'&&tiles.length>=3){
+    for(let i=0;i<3;i++){
+      addFlatMeldTile(ox,oz,rotY,tiles[i],(i-1)*STEP,y0,meldTileFaceUp(meld,i),Object.assign({tileIdx:i},udBase));
+    }
+    return;
+  }
+  if(type==='pong'&&tiles.length>=3){
+    for(let i=0;i<3;i++){
+      addFlatMeldTile(ox,oz,rotY,tiles[i],(i-1)*STEP,y0,meldTileFaceUp(meld,i),Object.assign({tileIdx:i},udBase));
+    }
+    return;
+  }
+  if(type==='kang'&&tiles.length>=4){
+    for(let i=0;i<3;i++){
+      const along=(i-1)*STEP;
+      addFlatMeldTile(ox,oz,rotY,tiles[i],along,y0,meldTileFaceUp(meld,i),Object.assign({tileIdx:i},udBase));
+    }
+    addKangFourthTile(ox,oz,rotY,tiles[3],y0,meldTileFaceUp(meld,3),Object.assign({tileIdx:3},udBase));
+    return;
+  }
+}
+
+/** 对手副露锚点：沿手牌方向最后张中心（四边均居中展开） */
+function opponentHandLastCenterAlongForMeldAnchor(seat,handCount){
+  const g=handGap(handCount);
+  if(handCount<=0) return 0;
+  const total=(handCount-1)*g+TW;
+  const start=-total/2+TW/2;
+  return start+(handCount-1)*g;
+}
+function renderOpponentConcealedForSeat(st,seat){
+  const n=st.hands[seat].length;
+  if(n<=0) return;
+  const gap=handGap(n);
+  const total=(n-1)*gap;
+  const start=-total/2;
+  const wrot=worldYawFromSouthFrame(0,seat);
+  if(st.southHandFlat[seat]){
+    ensureSeatHandFlatFaceUpLength(st,seat);
+    const yLift=HAND_DROP_Y;
+    const row=st.hands[seat];
+    for(let i=0;i<n;i++){
+      const u=start+i*gap;
+      const w=southFrameXZToWorldXZ(u,SOUTH_HAND_FIXED_Z,seat);
+      const tid=row[i];
+      const faceUp=st.southHandFlatFaceUp[seat][i]!==false;
+      let gg;
+      if(faceUp){
+        gg=makeFlatTileWithGlyph(tid,wrot);
+      }else{
+        gg=new THREE.Group();
+        gg.add(makeTileFlat('back'));
+        gg.rotation.y=wrot;
+      }
+      gg.userData={kind:'handFlat',seat,index:i};
+      gg.position.set(w.x,yLift,w.z);
+      gg.traverse(o=>{ if(o.isMesh) o.renderOrder=11; });
+      playContent.add(gg);
+    }
+    return;
+  }
+  for(let i=0;i<n;i++){
+    const u=start+i*gap;
+    const w=southFrameXZToWorldXZ(u,SOUTH_HAND_FIXED_Z,seat);
+    standTile(w.x,SY,w.z,wrot,'back');
+  }
+}
+function renderOpponentConcealedRows(st,viewer){
+  PHYSICAL_SEATS.forEach(seat=>{
+    if(seat===viewer) return;
+    renderOpponentConcealedForSeat(st,seat);
+  });
+}
+function renderOpponentMeldsOnly(st,viewer){
+  PHYSICAL_SEATS.forEach(seat=>{
+    if(seat===viewer) return;
+    const n=st.hands[seat].length;
+    const row=st.melds[seat];
+    const lastAlong=opponentHandLastCenterAlongForMeldAnchor(seat,n);
+    const closeM=row.length?row[row.length-1]:null;
+    const anchorAlong=meldAnchorFromLastHandCenter(lastAlong,closeM);
+    const L=getSouthFrameHandLayout(seat);
+    placeMeldsRightToLeft(anchorAlong,L.fixedZ,row,seat);
+  });
+}
+
+function fullRender(){
+  clearPlayGroup();
+  if(!tableState){
+    const dg=document.getElementById('diceGate');
+    if(dg){
+      dg.classList.remove('open');
+      dg.setAttribute('aria-hidden','true');
+    }
+    return;
+  }
+  const st=tableState;
+  const viewer=viewerSeat();
+  const handRow=st.hands[viewer];
+  const meldRow=st.melds[viewer];
+  playGroup.rotation.set(0,0,0);
+  syncCameraToLocalSeatIfNeeded();
+  buildWallMeshes(st.walls,st.wallMaxCols);
+  renderFlowersPlacedOnTable(st.cfg);
+
+  const lay=getSouthFrameHandLayout(viewer);
+  const {gS,nS}=lay;
+  const wrotHand=worldYawFromSouthFrame(0,viewer);
+  if(st.southHandFlat[viewer]) sortPreviewState=null;
+  const sp=sortPreviewState;
+  function addLocalHandTile(tileId,idx,di){
+    const sx=lay.startAlong+di*gS;
+    const sz=lay.fixedZ;
+    const w=southFrameXZToWorldXZ(sx,sz,viewer);
+    addLocalHandTileMesh(tileId,idx,w.x,w.z,wrotHand);
+  }
+  if(sp&&sp.from>=0&&sp.from<nS){
+    const from=sp.from|0;
+    let ins=Math.max(0,Math.min(nS,sp.insert|0));
+    const arr=Array.from({length:nS},(_,i)=>i);
+    const [mv]=arr.splice(from,1);
+    if(from<ins) ins--;
+    arr.splice(ins,0,mv);
+    for(let di=0;di<nS;di++){
+      if(nS>1&&arr[di]===from) continue;
+      const orig=arr[di];
+      addLocalHandTile(handRow[orig],orig,di);
+    }
+  }else{
+    for(let i=0;i<nS;i++){
+      addLocalHandTile(handRow[i],i,i);
+    }
+  }
+
+  renderMeldPrepSlots();
+
+  renderOpponentConcealedRows(st,viewer);
+
+  placeMeldsRightToLeft(lay.meldAnchorX,lay.meldAnchorZ,meldRow,viewer);
+
+  renderOpponentMeldsOnly(st,viewer);
+
+  renderRiverInCenter(st.river);
+
+  updateRiverHud(st);
+  playGroup.updateMatrixWorld(true);
+  updateDrawCountUi();
+  syncDiceGateToPhase();
+  renderer.render(scene,camera);
+}
+
+
+function updateRiverHud(st){
+  const el=document.getElementById('riverInfo');
+  if(!el||!st) return;
+  const r=st.river||[];
+  const c=x=>r.filter(e=>e.by===x).length;
+  const W=['S','E','N','W'];
+  const me=W.indexOf(localSeat());
+  if(me<0){
+    el.textContent=`河牌：南 ${c('S')} · 北 ${c('N')} · 东 ${c('E')} · 西 ${c('W')}（合计 ${r.length}）`;
+    return;
+  }
+  const nm=['本家','下家','对家','上家'];
+  const parts=[0,1,2,3].map(i=>{
+    const seat=W[(me+i)%4];
+    return `${nm[i]} ${c(seat)}`;
+  });
+  el.textContent=`河牌：${parts.join(' · ')}（合计 ${r.length}）`;
+}
+
+/** 联机试玩：WebSocket 全量同步 tableState（无规则校验，仅中继） */
+let netWs=null;
+let netApplyingRemote=false;
+let netRoom='room1';
+
+function flushNetBroadcast(){
+  if(netApplyingRemote) return;
+  if(!netWs||netWs.readyState!==1||!tableState) return;
+  try{
+    netWs.send(JSON.stringify({type:'state',room:netRoom,state:cloneStateForNet(tableState)}));
+  }catch(_){}
+}
+
+function syncRuleCheckboxesFromState(st){
+  if(!st||!st.cfg) return;
+  const f=document.getElementById('optFlowers');
+  const h=document.getElementById('optHonors');
+  if(f) f.checked=!!st.cfg.flowers;
+  if(h) h.checked=!!st.cfg.honors;
+}
+
+function applyRemoteState(state){
+  netApplyingRemote=true;
+  try{
+    dragState=null;
+    sortPreviewState=null;
+    clearDragGhost();
+    tableState=state;
+    normalizeTableStateShape(tableState);
+    syncRuleCheckboxesFromState(tableState);
+    fullRender();
+    if(tableState.gamePhase==='dice') openDiceGate();
+    else closeDiceGate();
+  }finally{
+    netApplyingRemote=false;
+  }
+  initRiichiTextures().then(()=>{
+    if(!tableState) return;
+    netApplyingRemote=true;
+    try{
+      fullRender();
+      if(tableState.gamePhase==='dice') openDiceGate();
+      else closeDiceGate();
+    }finally{
+      netApplyingRemote=false;
+    }
+  });
+}
+
+function netDisconnect(){
+  window.__mjPendingNet=0;
+  mySeat='S';
+  resetCameraSeatBinding();
+  const old=netWs;
+  netWs=null;
+  if(old){
+    old.onopen=null;
+    old.onmessage=null;
+    old.onerror=null;
+    old.onclose=null;
+    try{ old.close(); }catch(_){}
+  }
+  const el=document.getElementById('netStatus');
+  if(el) el.textContent='联机：已断开（本地单机）';
+  if(tableState) fullRender();
+  else syncCameraToLocalSeatIfNeeded();
+}
+
+function netConnect(){
+  /** 在纹理 init 完成前点连接时，避免先本地 newGame 再被同步覆盖导致「像以南家为准」的错乱 */
+  window.__mjPendingNet=1;
+  const urlEl=document.getElementById('netUrl');
+  const roomEl=document.getElementById('netRoom');
+  const statusEl=document.getElementById('netStatus');
+  const url=urlEl?urlEl.value.trim():'';
+  const room=(roomEl&&roomEl.value.trim())||'room1';
+  netRoom=room.slice(0,64);
+  if(!url){
+    showToast('请填写 WebSocket 地址');
+    return;
+  }
+  netDisconnect();
+  let socket;
+  try{
+    socket=new WebSocket(url);
+  }catch(err){
+    showToast('无法创建连接');
+    return;
+  }
+  netWs=socket;
+  socket.onopen=()=>{
+    if(netWs!==socket) return;
+    if(statusEl) statusEl.textContent='联机：已连接，正在加入房间…';
+    try{
+      socket.send(JSON.stringify({type:'join',room:netRoom}));
+      /* 不在此推送 state：后入者若立刻上传本地新局会覆盖中继里先主的 lastState，导致规则/牌张错乱 */
+    }catch(_){}
+    showToast('联机已连接');
+  };
+  socket.onmessage=(ev)=>{
+    if(netWs!==socket) return;
+    let msg;
+    try{ msg=JSON.parse(ev.data); }catch(_){ return; }
+    if(msg.type==='joined'){
+      const s=netSeatFromJoined(msg);
+      if(s==='S'||s==='N'||s==='E'||s==='W'){
+        mySeat=s;
+        resetCameraSeatBinding();
+      }
+      if(msg.peers===1&&tableState&&netWs===socket){
+        try{
+          netWs.send(JSON.stringify({type:'state',room:netRoom,state:cloneStateForNet(tableState)}));
+        }catch(_){}
+      }
+      if(statusEl) statusEl.textContent=`联机：房间 ${msg.room} · ${msg.peers} 人在线 · 本家 ${seatWindLabel(localSeat())}位（屏幕下方）`;
+      if(msg.peers===1&&tableState) fullRender();
+      return;
+    }
+    if(msg.type==='state'&&msg.state) applyRemoteState(msg.state);
+  };
+  socket.onclose=()=>{
+    if(netWs!==socket) return;
+    netWs=null;
+    if(statusEl) statusEl.textContent='联机：已断开（本地单机）';
+  };
+  socket.onerror=()=>{
+    showToast('联机失败：请先 cd server 执行 npm start，并用 http 打开本页（勿用 file://）');
+  };
+}
+
+function initNetPanel(){
+  const urlInput=document.getElementById('netUrl');
+  if(urlInput&&(urlInput.value==='ws://127.0.0.1:31987'||urlInput.value==='ws://127.0.0.1:8787')&&location.protocol==='http:'&&location.hostname){
+    urlInput.value=`ws://${location.hostname}:31987`;
+  }
+  if(location.protocol==='file:'){
+    const st=document.getElementById('netStatus');
+    if(st) st.textContent='联机：请用 http 打开本页（file:// 下无法联机）';
+    showToast('请用终端在项目目录执行：python3 -m http.server 31980，再打开 http://127.0.0.1:31980');
+  }
+}
+
+function resetCameraView(){
+  lookAtY=lookAtYDefault;
+  resetCameraSeatBinding();
+  syncCameraToLocalSeatIfNeeded();
+}
+
+function restartGame(){
+  resetCameraView();
+  newGame(readTileSetConfigFromUI());
+}
+
+/**
+ * 吃碰杠从右往左（南家基准 xz 下锚点与切向），再 southFrameXZToWorldXZ + worldYaw 落子。
+ */
+function placeMeldsRightToLeft(anchorX,anchorZ,melds,seat){
+  let d=0;
+  const {hx,hz}=meldHandTangent(0);
+  const awaySign=1;
+  const wrot=worldYawFromSouthFrame(0,seat);
+  for(let i=melds.length-1;i>=0;i--){
+    const w=meldBlockWidth(melds[i]);
+    const ox=anchorX+awaySign*d*hx;
+    const oz=anchorZ+awaySign*d*hz;
+    const wp=southFrameXZToWorldXZ(ox,oz,seat);
+    placeMeldToGroup(wp.x,wp.z,wrot,melds[i],seat,i);
+    d+=w+MELD_GAP_BETWEEN_GROUPS;
+  }
+}
+
+function pickInteractUserData(hitObject){
+  let o=hitObject;
+  while(o){
+    if(o.userData&&o.userData.kind) return o.userData;
+    o=o.parent;
+  }
+  return null;
+}
+
+const raycaster=new THREE.Raycaster();
+const pointer=new THREE.Vector2();
+const canvasEl=document.getElementById('c');
+const RIVER_DROP_Y=0.11;
+const HAND_DROP_Y=0.11;
+
+function clearDragGhost(){
+  while(dragGhostGroup.children.length){
+    const ch=dragGhostGroup.children[0];
+    dragGhostGroup.remove(ch);
+    disposeObject3D(ch);
+  }
+  if(dragGhostGroup.userData) delete dragGhostGroup.userData.wallPlaneY;
+}
+/** 拖拽物挂在 playContent→dragGhostGroup 下，位置为 dragGhostGroup 局部（与立牌同一桌面子空间） */
+function setDragGhostPositionWorld(wx,wy,wz){
+  if(!dragGhostGroup.children[0]) return;
+  const v=worldXYZToDragGhostGroupLocal(wx,wy,wz);
+  dragGhostGroup.children[0].position.copy(v);
+}
+/** 多子拖影：子物体相对质心摆放，整体移动 dragGhostGroup */
+function setDragGhostGroupPositionWorld(wx,wy,wz){
+  if(!dragGhostGroup.children.length) return;
+  const par=dragGhostGroup.parent;
+  if(!par) return;
+  par.updateMatrixWorld(true);
+  const inv=new THREE.Matrix4().copy(par.matrixWorld).invert();
+  const v=new THREE.Vector3(wx,wy,wz);
+  v.applyMatrix4(inv);
+  dragGhostGroup.position.copy(v);
+}
+function screenToWorldXZAtY(clientX,clientY,yPlane){
+  const rect=canvasEl.getBoundingClientRect();
+  pointer.x=((clientX-rect.left)/rect.width)*2-1;
+  pointer.y=-((clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  const ray=raycaster.ray, o=ray.origin, d=ray.direction;
+  if(Math.abs(d.y)<1e-8) return null;
+  const t=(yPlane-o.y)/d.y;
+  if(t<0) return null;
+  return{x:o.x+d.x*t,z:o.z+d.z*t};
+}
+/** 屏幕 → 与手牌/命中区一致的「桌系」XZ（经 worldXZToTableLocalXZ，与 playGroup 局部一致） */
+function screenToTableLocalXZAtY(clientX,clientY,yPlane){
+  const p=screenToWorldXZAtY(clientX,clientY,yPlane);
+  if(!p) return null;
+  return worldXZToTableLocalXZ(p.x,p.z);
+}
+/** 与 isInsideRiverArea、discardFromHandAtRiver 一致：桌系局部 XZ */
+function screenToRiverXZ(clientX,clientY){
+  return screenToTableLocalXZAtY(clientX,clientY,RIVER_DROP_Y);
+}
+/** 旁置区命中：多高度采样（与主牌区类似），避免透视下单一平面永远判不中 */
+function screenHitsLocalFlowerZone(clientX,clientY){
+  const ys=[FLOWER_TABLE_Y,HAND_DROP_Y,SY,0.12,0.16,0.2,0.26,0.32];
+  for(let yi=0;yi<ys.length;yi++){
+    const yh=ys[yi];
+    const p=screenToWorldXZAtY(clientX,clientY,yh);
+    if(p&&isInsideLocalFlowerZone(p.x,p.z,yh)) return true;
+  }
+  return false;
+}
+function isInsideRiverArea(tableLocalX,tableLocalZ){
+  return Math.abs(tableLocalX)<=RIVER_INNER&&Math.abs(tableLocalZ)<=RIVER_INNER;
+}
+/**
+ * 本家主牌区（桌系局部）。
+ * worldY：射线与水平面相交的世界 y；转桌系时必须传入，勿默认 0，否则透视下与立牌区错位。
+ */
+function isInsideLocalHandDropZone(x,z,worldY){
+  if(!tableState) return false;
+  const wy=(worldY!==undefined&&worldY!==null)?worldY:0;
+  const {x:lx,z:lz}=worldPointToTableLocalXZ(x,wy,z);
+  const v=viewerSeat();
+  const {x:sx,z:sz}=worldXZToSouthFrameXZ(lx,lz,v);
+  const L=getSouthFrameHandLayout(v);
+  const pad=0.95;
+  return sz>L.fixedZ-1.35&&sz<L.fixedZ+1.15&&sx>=L.startAlong-TW/2-pad&&sx<=L.lastAlong+TW/2+pad;
+}
+/**
+ * 从屏幕坐标判断是否落在本家主牌区。多高度采样 + 每点用正确 worldY 转桌系。
+ */
+function isInsideLocalHandDropZoneFromScreen(clientX,clientY){
+  const ys=[SY,HAND_DROP_Y,0.12,0.16,0.2,0.26,0.32,0.38];
+  for(let i=0;i<ys.length;i++){
+    const yh=ys[i];
+    const p=screenToWorldXZAtY(clientX,clientY,yh);
+    if(p&&isInsideLocalHandDropZone(p.x,p.z,yh)) return true;
+  }
+  return false;
+}
+
+function applyTwoFingerCamera(t0,t1){
+  lookAtPt.set(0,lookAtY,0);
+  const spanX=Math.abs(t1.clientX-t0.clientX);
+  const midY=(t0.clientY+t1.clientY)/2;
+  if(twoFingerLastSpanX>1e-6){
+    const scale=spanX/twoFingerLastSpanX;
+    const dir=camera.position.clone().sub(lookAtPt);
+    let r=dir.length();
+    // 双指向两边滑（span 变大）=> 放大：镜头距离应变小
+    r/=scale;
+    r=Math.max(4.2*LAYOUT_SCALE,Math.min(17*LAYOUT_SCALE,r));
+    dir.normalize();
+    camera.position.copy(lookAtPt).add(dir.multiplyScalar(r));
+    lookAtPt.set(0,lookAtY,0);
+    camera.lookAt(lookAtPt);
+  }
+  const dY=midY-twoFingerLastMidY;
+  camera.position.y+=dY*0.042;
+  lookAtY+=dY*0.017;
+  lookAtY=Math.max(-0.55,Math.min(0.45,lookAtY));
+  camera.position.y=Math.max(2.1*LAYOUT_SCALE,Math.min(8*LAYOUT_SCALE,camera.position.y));
+  lookAtPt.set(0,lookAtY,0);
+  camera.lookAt(lookAtPt);
+  twoFingerLastSpanX=spanX;
+  twoFingerLastMidY=midY;
+}
+canvasEl.addEventListener('touchstart',e=>{
+  if(e.touches.length===2){
+    e.preventDefault();
+    twoFingerCamActive=true;
+    dragState=null;
+    sortPreviewState=null;
+    clearDragGhost();
+    const t0=e.touches[0], t1=e.touches[1];
+    twoFingerLastSpanX=Math.abs(t1.clientX-t0.clientX);
+    twoFingerLastMidY=(t0.clientY+t1.clientY)/2;
+  }
+},{passive:false});
+
+canvasEl.addEventListener('touchmove',e=>{
+  if(!twoFingerCamActive||e.touches.length<2) return;
+  e.preventDefault();
+  applyTwoFingerCamera(e.touches[0],e.touches[1]);
+},{passive:false});
+
+canvasEl.addEventListener('touchend',e=>{
+  if(e.touches.length<2){
+    twoFingerCamActive=false;
+    twoFingerLastSpanX=0;
+  }
+});
+
+canvasEl.addEventListener('touchcancel',()=>{
+  twoFingerCamActive=false;
+  twoFingerLastSpanX=0;
+});
+
+canvasEl.addEventListener('pointerdown',e=>{
+  if(twoFingerCamActive) return;
+  if(dragState) return;
+  const viewer=viewerSeat();
+  const rect=canvasEl.getBoundingClientRect();
+  pointer.x=((e.clientX-rect.left)/rect.width)*2-1;
+  pointer.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObjects(playGroup.children,true);
+  const isViewerSeat=(ud)=>ud&&ud.seat===viewer;
+  if(hits.length){
+    for(let h=0;h<hits.length;h++){
+      const ud=pickInteractUserData(hits[h].object);
+      if(ud&&ud.kind==='meldTile'&&ud.seat&&typeof ud.meldIdx==='number'&&typeof ud.tileIdx==='number'){
+        dragState={type:'meldTileTap',seat:ud.seat,meldIdx:ud.meldIdx,tileIdx:ud.tileIdx,sx:e.clientX,sy:e.clientY,active:false};
+        canvasEl.setPointerCapture(e.pointerId);
+        return;
+      }
+    }
+  }
+  if(!hits.length){
+    dragState={type:'tableGesture',sx:e.clientX,sy:e.clientY,t0:performance.now(),moved:false,longPressTimer:null,longPressFired:false};
+    dragState.longPressTimer=setTimeout(()=>{
+      if(dragState&&dragState.type==='tableGesture'&&!dragState.moved){
+        dragState.longPressFired=true;
+        toggleLocalHandFlat();
+      }
+    },520);
+    canvasEl.setPointerCapture(e.pointerId);
+    return;
+  }
+  for(let h=0;h<hits.length;h++){
+    const ud=pickInteractUserData(hits[h].object);
+    if(ud&&ud.kind==='handFlat'&&isViewerSeat(ud)&&typeof ud.index==='number'){
+      dragState={type:'handFlatTap',index:ud.index,sx:e.clientX,sy:e.clientY,active:false};
+      canvasEl.setPointerCapture(e.pointerId);
+      return;
+    }
+  }
+  for(let h=0;h<hits.length;h++){
+    const ud=pickInteractUserData(hits[h].object);
+    if(ud&&ud.kind==='asidePlaced'&&isViewerSeat(ud)&&typeof ud.slot==='number'){
+      dragState={type:'asideTile',slot:ud.slot,sx:e.clientX,sy:e.clientY,active:false};
+      canvasEl.setPointerCapture(e.pointerId);
+      return;
+    }
+  }
+  for(let h=0;h<hits.length;h++){
+    const ud=pickInteractUserData(hits[h].object);
+    if(ud&&ud.kind==='meldPrep'&&typeof ud.slot==='number'){
+      dragState={type:'prepTile',slot:ud.slot,sx:e.clientX,sy:e.clientY,active:false};
+      canvasEl.setPointerCapture(e.pointerId);
+      return;
+    }
+  }
+  for(let h=0;h<hits.length;h++){
+    const ud=pickInteractUserData(hits[h].object);
+    if(ud&&ud.kind==='hand'&&isViewerSeat(ud)){
+      if(tableState&&tableState.southHandFlat[viewer]) continue;
+      dragState={type:'handTile',index:ud.index,sx:e.clientX,sy:e.clientY,sortLifted:false,discardActive:false,insertIndex:0};
+      canvasEl.setPointerCapture(e.pointerId);
+      return;
+    }
+  }
+  for(let h=0;h<hits.length;h++){
+    const ud=pickInteractUserData(hits[h].object);
+    if(ud&&ud.kind==='wall'&&typeof ud.wallIndex==='number'&&tableState&&tableState.gamePhase==='play'&&typeof ud.side==='string'){
+      const hp=hits[h].point;
+      lastWallPickWorld={x:hp.x,y:hp.y,z:hp.z};
+      syncWallForwardCursorToTile(tableState,ud.side,ud.wallIndex);
+      dragState={type:'wall',side:ud.side,wallIndex:ud.wallIndex,sx:e.clientX,sy:e.clientY,active:false};
+      canvasEl.setPointerCapture(e.pointerId);
+      return;
+    }
+  }
+  for(let h=0;h<hits.length;h++){
+    const ud=pickInteractUserData(hits[h].object);
+    if(ud&&ud.kind==='river'&&typeof ud.riverIndex==='number'){
+      dragState={type:'riverTile',riverIndex:ud.riverIndex,sx:e.clientX,sy:e.clientY,active:false};
+      canvasEl.setPointerCapture(e.pointerId);
+      return;
+    }
+  }
+});
+
+canvasEl.addEventListener('pointermove',e=>{
+  if(twoFingerCamActive) return;
+  if(!dragState||!tableState) return;
+  const st=dragState;
+  if(st.type==='tableGesture'){
+    const d=Math.hypot(e.clientX-st.sx,e.clientY-st.sy);
+    if(d>14){
+      st.moved=true;
+      if(st.longPressTimer){
+        clearTimeout(st.longPressTimer);
+        st.longPressTimer=null;
+      }
+    }
+    return;
+  }
+  if(st.type==='handFlatTap'){
+    const d=Math.hypot(e.clientX-st.sx,e.clientY-st.sy);
+    if(!st.active&&d>=DRAG_START_PX) st.active=true;
+    return;
+  }
+  if(st.type==='wall'){
+    const d=Math.hypot(e.clientX-st.sx,e.clientY-st.sy);
+    if(!st.active&&d>=DRAG_START_PX){
+      clearDragGhost();
+      if(tableState&&tableState.gamePhase==='play'){
+        syncWallForwardCursorToTile(tableState,st.side,st.wallIndex);
+      }
+      if(buildWallDragGhost()) st.active=true;
+    }
+    if(!st.active) return;
+    const py=(dragGhostGroup.userData&&Number.isFinite(dragGhostGroup.userData.wallPlaneY))
+      ? dragGhostGroup.userData.wallPlaneY
+      : SY;
+    let p=screenToWorldXZAtY(e.clientX,e.clientY,py);
+    if(!p) p=screenToWorldXZAtY(e.clientX,e.clientY,SY);
+    if(!p) p=screenToWorldXZAtY(e.clientX,e.clientY,HAND_DROP_Y);
+    if(p) setDragGhostGroupPositionWorld(p.x,py,p.z);
+    return;
+  }
+  if(st.type==='riverTile'){
+    const d=Math.hypot(e.clientX-st.sx,e.clientY-st.sy);
+    if(!st.active&&d>=DRAG_START_PX){
+      st.active=true;
+      const rv=tableState.river[st.riverIndex];
+      if(rv){
+        const rotRiver={S:0,N:Math.PI,E:Math.PI/2,W:-Math.PI/2};
+        const gg=makeFlatTileWithGlyph(rv.tile,rotRiver[rv.by]||0);
+        gg.traverse(o=>{ if(o.isMesh) o.renderOrder=99; });
+        dragGhostGroup.add(gg);
+      }
+    }
+    if(!st.active) return;
+    const p=screenToWorldXZAtY(e.clientX,e.clientY,HAND_DROP_Y);
+    if(p) setDragGhostPositionWorld(p.x,HAND_DROP_Y,p.z);
+    return;
+  }
+  if(st.type==='meldTileTap'){
+    const d=Math.hypot(e.clientX-st.sx,e.clientY-st.sy);
+    if(!st.active&&d>=DRAG_START_PX) st.active=true;
+    return;
+  }
+  if(st.type==='prepTile'){
+    const d=Math.hypot(e.clientX-st.sx,e.clientY-st.sy);
+    if(!st.active&&d>=DRAG_START_PX){
+      st.active=true;
+      const tid=tableState.meldPrep[localSeat()][st.slot];
+      if(tid){
+        const flatYaw=worldYawFromSouthFrame(0,localSeat());
+        const gg=makeFlatTileWithGlyph(tid,flatYaw);
+        gg.traverse(o=>{ if(o.isMesh) o.renderOrder=99; });
+        dragGhostGroup.add(gg);
+      }
+    }
+    if(!st.active) return;
+    const p=screenToWorldXZAtY(e.clientX,e.clientY,HAND_DROP_Y);
+    if(p) setDragGhostPositionWorld(p.x,HAND_DROP_Y,p.z);
+    return;
+  }
+  if(st.type==='asideTile'){
+    const d=Math.hypot(e.clientX-st.sx,e.clientY-st.sy);
+    if(!st.active&&d>=DRAG_START_PX){
+      st.active=true;
+      const tid=tableState.asidePlaced[localSeat()][st.slot];
+      if(tid){
+        const flatYaw=worldYawFromSouthFrame(0,localSeat());
+        const gg=makeFlatTileWithGlyph(tid,flatYaw);
+        gg.traverse(o=>{ if(o.isMesh) o.renderOrder=99; });
+        dragGhostGroup.add(gg);
+      }
+    }
+    if(!st.active) return;
+    const p=screenToWorldXZAtY(e.clientX,e.clientY,HAND_DROP_Y);
+    if(p) setDragGhostPositionWorld(p.x,HAND_DROP_Y,p.z);
+    return;
+  }
+  if(st.type!=='handTile') return;
+  const d=Math.hypot(e.clientX-st.sx,e.clientY-st.sy);
+  const dy=e.clientY-st.sy;
+  if(!st.sortLifted&&dy<-SORT_LIFT_PX){
+    st.sortLifted=true;
+    st.discardActive=false;
+    clearDragGhost();
+    const tid=tableState.hands[localSeat()][st.index];
+    if(tid){
+      dragGhostGroup.add(makeDragGhostStand(tid,0,viewerSeat()));
+    }
+    const p=screenToWorldXZAtY(e.clientX,e.clientY,SY);
+    if(p){
+      st.insertIndex=computeHandInsertIndex(p.x,p.z);
+      sortPreviewState={from:st.index,insert:st.insertIndex};
+      scheduleSortPreviewRender();
+    }
+  }
+  if(st.sortLifted){
+    const p=screenToWorldXZAtY(e.clientX,e.clientY,SY);
+    if(p){
+      st.insertIndex=computeHandInsertIndex(p.x,p.z);
+      sortPreviewState={from:st.index,insert:st.insertIndex};
+      scheduleSortPreviewRender();
+      if(p) setDragGhostPositionWorld(p.x,SY,p.z);
+    }
+    return;
+  }
+  if(!st.discardActive&&d>=DRAG_START_PX){
+    st.discardActive=true;
+    clearDragGhost();
+    const tid=tableState.hands[localSeat()][st.index];
+    if(tid){
+      const flatYaw=worldYawFromSouthFrame(0,localSeat());
+      const gg=makeFlatTileWithGlyph(tid,flatYaw);
+      gg.traverse(o=>{ if(o.isMesh) o.renderOrder=99; });
+      dragGhostGroup.add(gg);
+    }
+  }
+  if(st.discardActive){
+    const p=screenToWorldXZAtY(e.clientX,e.clientY,HAND_DROP_Y);
+    if(p) setDragGhostPositionWorld(p.x,HAND_DROP_Y,p.z);
+  }
+});
+
+canvasEl.addEventListener('pointerup',e=>{
+  if(!dragState) return;
+  try{ canvasEl.releasePointerCapture(e.pointerId); }catch(_){}
+  const st=dragState;
+  const wasDrag=st.type==='wall'?st.active:(st.type==='riverTile'?st.active:(st.type==='prepTile'||st.type==='asideTile'?st.active:(st.type==='meldTileTap'?st.active:(st.type==='handFlatTap'?st.active:(st.type==='tableGesture'?st.moved:(st.type==='handTile'?(st.sortLifted||st.discardActive):false))))));
+  dragState=null;
+  clearDragGhost();
+  sortPreviewState=null;
+  if(!tableState) return;
+  if(st.type==='tableGesture'){
+    if(st.longPressTimer){
+      clearTimeout(st.longPressTimer);
+      st.longPressTimer=null;
+    }
+    if(!st.longPressFired&&!st.moved){
+      const now=performance.now();
+      if(now-lastEmptyTap.t<350&&Math.hypot(e.clientX-lastEmptyTap.x,e.clientY-lastEmptyTap.y)<38){
+        toggleLocalHandFlat();
+        lastEmptyTap={t:0,x:0,y:0};
+      }else lastEmptyTap={t:now,x:e.clientX,y:e.clientY};
+    }else if(st.moved&&!st.longPressFired){
+      const dx=e.clientX-st.sx;
+      const dy=e.clientY-st.sy;
+      if(Math.abs(dx)>Math.abs(dy)&&dx>72&&Math.abs(dy)<55){
+        const p0=screenToWorldXZAtY(st.sx,st.sy,HAND_DROP_Y);
+        const p1=screenToWorldXZAtY(e.clientX,e.clientY,HAND_DROP_Y);
+        const n=tableState.hands[localSeat()].length;
+        if(p0&&p1&&n>0&&isInsideLocalHandDropZone(p0.x,p0.z)&&isInsideLocalHandDropZone(p1.x,p1.z)){
+          if(n===1) layDownLocalHandFlat();
+          else{
+            const v=localSeat();
+            const L=getSouthFrameHandLayout(v);
+            const gS=handGap(n);
+            const totalWS=(n-1)*gS+TW;
+            const startAlong=-totalWS/2+TW/2;
+            const lastAlong=startAlong+(n-1)*gS;
+            const mid=(startAlong+lastAlong)/2;
+            const l0=worldXZToTableLocalXZ(p0.x,p0.z);
+            const l1=worldXZToTableLocalXZ(p1.x,p1.z);
+            const s0=worldXZToSouthFrameXZ(l0.x,l0.z,v);
+            const s1=worldXZToSouthFrameXZ(l1.x,l1.z,v);
+            const a0=s0.x;
+            const a1=s1.x;
+            if(a0<mid-0.02&&a1>mid+0.02) layDownLocalHandFlat();
+          }
+        }
+      }
+    }
+    return;
+  }
+  if(st.type==='handFlatTap'){
+    if(!wasDrag) toggleLocalHandFlatTileFace(st.index);
+    return;
+  }
+  if(st.type==='meldTileTap'){
+    if(!wasDrag) toggleMeldTileFace(st.seat,st.meldIdx,st.tileIdx);
+    return;
+  }
+  if(st.type==='wall'){
+    if(tableState.gamePhase!=='play'){
+      showToast('请先掷骰开门');
+      return;
+    }
+    const wallPhysicalSide=st.side;
+    const wallIdx=st.wallIndex;
+    const inHand=isInsideLocalHandDropZoneFromScreen(e.clientX,e.clientY);
+    if(wasDrag){
+      if(!inHand){
+        if(tableState&&tableState.gamePhase==='play'){
+          syncWallForwardCursorToTile(tableState,wallPhysicalSide,wallIdx);
+        }
+        showToast('请拖到自己的主牌区再松手');
+      }else drawFromWallAtIndex(wallPhysicalSide,wallIdx);
+    }else if(inHand){
+      drawFromWallAtIndex(wallPhysicalSide,wallIdx);
+    }else{
+      trySequentialWallDraw(wallPhysicalSide,wallIdx);
+    }
+    return;
+  }
+  if(st.type==='riverTile'){
+    const p=screenToWorldXZAtY(e.clientX,e.clientY,SY)||screenToWorldXZAtY(e.clientX,e.clientY,HAND_DROP_Y);
+    if(!p){
+      if(wasDrag) showToast('无法对准落点，请重试');
+      return;
+    }
+    const inPrep=isInsideMeldPrepZone(p.x,p.z);
+    const inMeld=isInsideMeldCompleteZone(p.x,p.z);
+    if(inPrep||inMeld){
+      if(mergeKangFromPrepAndRiver(st.riverIndex)) return;
+      if(tryChiFromPrepAndRiver(st.riverIndex)) return;
+      return;
+    }
+    if(isInsideLocalHandDropZoneFromScreen(e.clientX,e.clientY)){
+      const pIns=screenToWorldXZAtY(e.clientX,e.clientY,SY)||screenToWorldXZAtY(e.clientX,e.clientY,HAND_DROP_Y);
+      if(pIns) returnRiverTileToHand(st.riverIndex,pIns.x,pIns.z);
+      return;
+    }
+    return;
+  }
+  if(st.type==='prepTile'){
+    if(!wasDrag){
+      toggleMeldPrepFace(st.slot);
+      return;
+    }
+    if(wasDrag){
+      if(isInsideLocalHandDropZoneFromScreen(e.clientX,e.clientY)) returnPrepSlotToHand(st.slot);
+      fullRender();
+      flushNetBroadcast();
+    }
+    return;
+  }
+  if(st.type==='asideTile'){
+    if(wasDrag){
+      if(isInsideLocalHandDropZoneFromScreen(e.clientX,e.clientY)) returnAsideToHand(st.slot);
+      fullRender();
+      flushNetBroadcast();
+    }
+    return;
+  }
+  if(st.type==='handTile'){
+    const pr=screenToRiverXZ(e.clientX,e.clientY);
+    const inRiver=pr&&isInsideRiverArea(pr.x,pr.z);
+    if(st.sortLifted){
+      const pd=screenToWorldXZAtY(e.clientX,e.clientY,HAND_DROP_Y);
+      if(pd&&(isInsideMeldPrepZone(pd.x,pd.z)||isInsideMeldCompleteZone(pd.x,pd.z))){
+        if(placeTileInMeldPrep(st.index)){ fullRender(); flushNetBroadcast(); }
+        return;
+      }
+      if(inRiver){
+        discardFromHandAtRiver(st.index,pr.x,pr.z);
+        return;
+      }
+      /** 拖入旁置带：须优先于主牌区（手牌区与旁置带重叠，先判主牌会放不进旁置带） */
+      if(screenHitsLocalFlowerZone(e.clientX,e.clientY)){
+        if(placeAsideFromHand(st.index)){ fullRender(); flushNetBroadcast(); }
+        return;
+      }
+      if(isInsideLocalHandDropZoneFromScreen(e.clientX,e.clientY)){
+        const p=screenToWorldXZAtY(e.clientX,e.clientY,SY)||screenToWorldXZAtY(e.clientX,e.clientY,HAND_DROP_Y);
+        if(!p){ showToast('无法对准落点，请重试'); return; }
+        const ins=computeHandInsertIndex(p.x,p.z);
+        reorderLocalHand(st.index,ins);
+        fullRender();
+        flushNetBroadcast();
+        return;
+      }
+      const p=screenToWorldXZAtY(e.clientX,e.clientY,SY);
+      if(!p){ showToast('无法对准落点，请重试'); return; }
+      const ins=computeHandInsertIndex(p.x,p.z);
+      reorderLocalHand(st.index,ins);
+      fullRender();
+      flushNetBroadcast();
+      return;
+    }
+    if(st.discardActive){
+      const p=screenToWorldXZAtY(e.clientX,e.clientY,HAND_DROP_Y);
+      if(!p){ showToast('无法对准落点，请重试'); return; }
+      if(isInsideMeldPrepZone(p.x,p.z)||isInsideMeldCompleteZone(p.x,p.z)){
+        if(placeTileInMeldPrep(st.index)){ fullRender(); flushNetBroadcast(); }
+        return;
+      }
+      if(inRiver){
+        discardFromHandAtRiver(st.index,pr.x,pr.z);
+        return;
+      }
+      if(screenHitsLocalFlowerZone(e.clientX,e.clientY)){
+        if(placeAsideFromHand(st.index)){ fullRender(); flushNetBroadcast(); }
+        return;
+      }
+      if(isInsideLocalHandDropZoneFromScreen(e.clientX,e.clientY)) return;
+      return;
+    }
+  }
+});
+
+canvasEl.addEventListener('pointercancel',()=>{
+  if(dragState&&dragState.type==='tableGesture'&&dragState.longPressTimer){
+    clearTimeout(dragState.longPressTimer);
+    dragState.longPressTimer=null;
+  }
+  dragState=null;
+  sortPreviewState=null;
+  clearDragGhost();
+});
+
+document.getElementById('fabNew').addEventListener('click',restartGame);
+document.getElementById('netConnect').addEventListener('click',netConnect);
+document.getElementById('netDisconnect').addEventListener('click',netDisconnect);
+['optFlowers','optHonors'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',restartGame);
+});
+
+initNetPanel();
+document.getElementById('btnRollDice').addEventListener('click',()=>{ startDiceRollAnimation(); });
+(function wireDrawCountMenu(){
+  const btn=document.getElementById('drawCountBtn');
+  const menu=document.getElementById('drawCountMenu');
+  if(!menu||!btn) return;
+  for(let i=1;i<=8;i++){
+    const b=document.createElement('button');
+    b.type='button';
+    b.textContent='摸'+i;
+    b.addEventListener('click',e=>{
+      e.stopPropagation();
+      localDrawCountSetting=i;
+      menu.classList.remove('open');
+      updateDrawCountUi();
+    });
+    menu.appendChild(b);
+  }
+  let lpTimer=null, longArmed=false;
+  btn.addEventListener('pointerdown',()=>{
+    longArmed=false;
+    lpTimer=setTimeout(()=>{
+      longArmed=true;
+      if(tableState&&(tableState.gamePhase==='play'||tableState.gamePhase==='dice')) menu.classList.add('open');
+    },480);
+  });
+  btn.addEventListener('pointerup',()=>{
+    if(lpTimer){ clearTimeout(lpTimer); lpTimer=null; }
+    if(!longArmed&&tableState&&(tableState.gamePhase==='play'||tableState.gamePhase==='dice')){
+      const c=getLocalDrawCount();
+      /** 短按仅 摸4↔摸1；从菜单选的 2～8 不被短按覆盖，避免显示与设定不一致 */
+      if(c===4) localDrawCountSetting=1;
+      else if(c===1) localDrawCountSetting=4;
+      updateDrawCountUi();
+    }
+  });
+  btn.addEventListener('pointerleave',()=>{
+    if(lpTimer){ clearTimeout(lpTimer); lpTimer=null; }
+  });
+  document.addEventListener('click',ev=>{
+    if(!menu.classList.contains('open')) return;
+    if(ev.target===btn||menu.contains(ev.target)) return;
+    menu.classList.remove('open');
+  });
+})();
+initRiichiTextures().then(()=>{
+  const pending=!!window.__mjPendingNet;
+  if(!(netWs&&netWs.readyState===1&&tableState)&&!pending) restartGame();
+  window.__mjPendingNet=0;
+  if(tableState) fullRender();
+  requestAnimationFrame(()=>{ if(tableState) fullRender(); });
+});
+
+function animate(){
+  requestAnimationFrame(animate);
+  if(diceAnimState){
+    const e=performance.now()-diceAnimState.t0;
+    const t=Math.min(1,e/2200);
+    const ease=1-Math.pow(1-t,3);
+    const spin=1-ease;
+    const qSpinA=new THREE.Quaternion().setFromEuler(new THREE.Euler(
+      spin*Math.PI*14+0.2, spin*Math.PI*11+0.3, spin*Math.PI*9+0.1));
+    const qSpinB=new THREE.Quaternion().setFromEuler(new THREE.Euler(
+      spin*Math.PI*12+0.4, spin*Math.PI*13+0.1, spin*Math.PI*10+0.2));
+    diceAnimState.a.quaternion.copy(qSpinA).multiply(diceAnimState.qa1);
+    diceAnimState.b.quaternion.copy(qSpinB).multiply(diceAnimState.qb1);
+    if(e>=2200&&diceAnimState){
+      const d1=diceAnimState.d1, d2=diceAnimState.d2;
+      diceAnimState=null;
+      finishOpeningDice(d1,d2);
+    }
+  }
+  renderer.render(scene,camera);
+}
+animate();
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+</script>
+</body>
+</html>
